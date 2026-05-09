@@ -1,236 +1,229 @@
-# Notive Documentation
+# Notive
 
-Notive는 AI 기반 사내 문서 및 업무 운영 플랫폼이다.
+<p align="center">
+  <img src="docs/assets/brand/notive-logo.png" alt="Notive logo" width="520" />
+</p>
 
-이 디렉터리는 Notive의 제품 기획, 구현 계획, 기술 설계, 운영 기준을 정리한 문서 모음이다.
+<p align="center">
+  <strong>회사의 업무 흐름을 이해하고, 흩어진 기록을 문서와 지식 자산으로 바꾸는 AI 업무 운영 플랫폼</strong>
+</p>
 
----
-
-# 1. 권장 읽기 순서
-
-처음 프로젝트를 파악할 때는 아래 순서로 읽는다.
-
-1. `prd/notive-prd-v1.0.md`
-2. `implementation/notive-implementation-plan-v1.0.md`
-3. `implementation/notive-implementation-plan-a-foundation-v1.0.md`
-4. `architecture/notive-technical-architecture-v1.0.md`
-5. `database/notive-database-design-v1.0.md`
-6. `api/notive-api-spec-v1.0.md`
-7. `ux/notive-screen-ux-design-v1.0.md`
-8. `security/notive-permission-policy-v1.0.md`
-9. `ai/notive-ai-generation-policy-v1.0.md`
-10. `qa/notive-test-plan-v1.0.md`
-11. `operations/notive-deployment-operations-guide-v1.0.md`
+<p align="center">
+  <a href="docs/prd/notive-prd-v1.0.md">PRD</a>
+  ·
+  <a href="docs/implementation/notive-implementation-plan-v1.0.md">Implementation Plan</a>
+  ·
+  <a href="docs/architecture/notive-technical-architecture-v1.0.md">Architecture</a>
+  ·
+  <a href="docs/README.md">Docs</a>
+</p>
 
 ---
 
-# 2. 문서 구조
+<p align="center">
+  <img src="docs/assets/brand/notive-hero.png" alt="Notive AI document generation concept" width="100%" />
+</p>
+
+## What Is Notive?
+
+Notive는 기업 내부의 문서, 업무 기록, 회의 내용, 일정, To-do, 프로젝트 맥락을 연결해 실제 업무에 맞는 문서 초안을 만들고 관리하는 AI 기반 사내 문서 및 업무 운영 플랫폼입니다.
+
+단순히 프롬프트를 입력해 문서를 생성하는 도구가 아니라, 회사 안에 이미 흩어져 있는 업무 맥락을 바탕으로 보고서, 회의록, 제안서, 정책 문서, SOP 같은 업무 문서를 더 빠르고 일관되게 완성하는 것을 목표로 합니다.
+
+> 문서를 새로 쓰는 시간이 아니라, 이미 진행한 업무를 정리하는 시간을 줄입니다.
+
+---
+
+## Core Value
+
+| Value | Description |
+| --- | --- |
+| 업무 맥락 기반 생성 | 업무 기록, 회의 메모, 프로젝트 상태, To-do를 바탕으로 문서 초안을 생성합니다. |
+| 문서 품질 표준화 | 회사 템플릿과 문체 기준을 적용해 팀마다 다른 문서 품질 편차를 줄입니다. |
+| 사내 지식 재사용 | 기존 문서와 업무 히스토리를 검색하고 요약해 다시 활용합니다. |
+| 권한 기반 보안 | 문서, 검색 결과, AI 참고 자료 모두 사용자 권한 범위 안에서만 처리합니다. |
+| 운영 가능한 SaaS 구조 | SMB 대상 Web SaaS로 시작해 향후 엔터프라이즈 환경까지 확장합니다. |
+
+---
+
+## Product Pillars
+
+### Work Context Hub
+
+<img src="docs/assets/brand/notive-context-hub.png" alt="Work context hub" width="100%" />
+
+Notive는 문서, 일정, To-do, 회의 메모, 프로젝트 상태를 하나의 업무 맥락으로 연결합니다.
+
+반복 정리보다 실제 업무 완성에 집중할 수 있도록, 사용자가 이미 남긴 기록을 문서 생성의 기반으로 사용합니다.
+
+### Context-Aware Document Generation
+
+업무 기록과 기존 문서를 바탕으로 보고서, 회의록, 제안서, 기획서, SOP, 이메일 초안 등을 생성합니다.
+
+AI 결과는 항상 초안으로 제공되며, 사용자가 검토하고 수정한 뒤 문서로 저장합니다.
+
+### Knowledge Reuse
+
+<img src="docs/assets/brand/notive-knowledge-search.png" alt="Knowledge reuse search" width="100%" />
+
+사내 문서를 자연어로 검색하고, 출처가 있는 요약을 제공합니다.
+
+권한 없는 문서는 검색 결과와 AI 요약 근거에 포함되지 않으며, 사용자는 원문 출처를 확인한 뒤 필요한 문서를 재사용할 수 있습니다.
+
+### Template Quality
+
+<img src="docs/assets/brand/notive-template-quality.png" alt="Template based document quality" width="100%" />
+
+회사 또는 팀별 문서 템플릿, 문체 기준, 검토 흐름을 연결해 문서 품질을 표준화합니다.
+
+팀마다 다른 형식으로 작성되던 문서를 일관된 품질로 관리하는 것이 목표입니다.
+
+---
+
+## MVP Scope
+
+Notive MVP는 “업무 맥락을 반영한 AI 문서 생성이 실제 업무 문서 작성 시간을 줄일 수 있는가”를 검증하는 데 집중합니다.
+
+### Included
+
+* 사용자 인증과 조직 관리
+* 역할 기반 권한 관리
+* 문서 작성, 저장, 수정, 공유
+* 문서 버전 관리
+* AI 문서 생성
+* 템플릿 기반 문서 생성
+* 업무 다이어리
+* 기본 To-do
+* 사내 문서 검색
+* AI 요약 검색
+* 관리자 기능
+* 활동 로그와 기본 사용 현황
+
+### Not In MVP
+
+* 모바일 앱
+* Desktop App
+* On-Premise/VPC
+* 실시간 음성 회의록
+* 외부 서비스 연동
+* AI Agent 자동 실행
+* 결제/플랜 관리
+
+---
+
+## Architecture Direction
+
+Notive는 초기에는 Web SaaS 중심으로 단순하게 시작합니다.
 
 ```text
-docs/
-  README.md
-  prd/
-  implementation/
-  architecture/
-  database/
-  api/
-  ux/
-  security/
-  ai/
-  qa/
-  operations/
+User Browser
+  -> Web App / API
+    -> Auth & Permission
+    -> Document Module
+    -> AI Generation Module
+    -> Work Context Module
+    -> Search Module
+    -> Admin Module
+  -> PostgreSQL
+  -> Object Storage
+  -> AI Provider
+  -> Search Index
+  -> Logging / Monitoring
 ```
 
----
-
-# 3. 제품 기획 문서
-
-## PRD
-
-| 문서 | 설명 |
-| --- | --- |
-| `prd/notive-prd-v1.0.md` | Notive의 제품 목적, 타깃 사용자, 핵심 기능, MVP 범위, 성공 지표를 정의한다. |
-
-이 문서는 “무엇을 왜 만들 것인가”를 설명한다.
+초기에는 빠른 검증을 우선하되, AI 처리와 검색 인덱싱은 향후 별도 워커 또는 서비스로 분리할 수 있는 구조를 지향합니다.
 
 ---
 
-# 4. 구현 계획 문서
-
-## 전체 구현 계획
-
-| 문서 | 설명 |
-| --- | --- |
-| `implementation/notive-implementation-plan-v1.0.md` | A-H 단계로 나눈 전체 구현 로드맵이다. |
-
----
-
-## 단계별 세부 구현 계획
-
-| 단계 | 문서 | 설명 |
-| --- | --- | --- |
-| A | `implementation/notive-implementation-plan-a-foundation-v1.0.md` | 기반 설계, 화면 범위, 권한, 데이터 범위, MVP 백로그를 정의한다. |
-| B | `implementation/notive-implementation-plan-b-service-foundation-v1.0.md` | 인증, 조직, 팀, 역할, 공통 레이아웃 구축 계획이다. |
-| C | `implementation/notive-implementation-plan-c-document-management-v1.0.md` | 문서 작성, 저장, 공유, 버전 관리 구현 계획이다. |
-| D | `implementation/notive-implementation-plan-d-ai-document-generation-v1.0.md` | AI 문서 생성, 템플릿, 참고 자료, 결과 저장 흐름 구현 계획이다. |
-| E | `implementation/notive-implementation-plan-e-work-context-v1.0.md` | 업무 다이어리, To-do, 업무 맥락 기반 문서 생성 구현 계획이다. |
-| F | `implementation/notive-implementation-plan-f-knowledge-search-v1.0.md` | 사내 지식 검색, AI 요약 검색, 출처 표시 구현 계획이다. |
-| G | `implementation/notive-implementation-plan-g-admin-operations-v1.0.md` | 관리자, 사용자 관리, 템플릿, 활동 로그, 사용 현황 구현 계획이다. |
-| H | `implementation/notive-implementation-plan-h-stabilization-launch-v1.0.md` | 안정화, 출시 준비, QA, 운영 준비 계획이다. |
-
----
-
-# 5. 기술 설계 문서
-
-## 아키텍처
-
-| 문서 | 설명 |
-| --- | --- |
-| `architecture/notive-technical-architecture-v1.0.md` | 전체 시스템 구성, 모듈 구조, 데이터 흐름, AI/검색/보안/배포 아키텍처를 정의한다. |
-
-## DB
-
-| 문서 | 설명 |
-| --- | --- |
-| `database/notive-database-design-v1.0.md` | PostgreSQL 기준 테이블, 필드, 관계, 인덱스, 삭제/보존 정책을 정의한다. |
-
-## API
-
-| 문서 | 설명 |
-| --- | --- |
-| `api/notive-api-spec-v1.0.md` | REST API 경로, 요청/응답 구조, 권한 기준, 오류 처리 기준을 정의한다. |
-
----
-
-# 6. 제품 구현 지원 문서
-
-## 화면/UX
-
-| 문서 | 설명 |
-| --- | --- |
-| `ux/notive-screen-ux-design-v1.0.md` | 화면별 목적, 구성 요소, 상태, 오류 처리, API 연결 기준을 정의한다. |
-
-## 권한 정책
-
-| 문서 | 설명 |
-| --- | --- |
-| `security/notive-permission-policy-v1.0.md` | 역할, 문서 권한, AI 참고 자료 권한, 검색 권한, 관리자 권한을 정의한다. |
-
-## AI 생성 정책
-
-| 문서 | 설명 |
-| --- | --- |
-| `ai/notive-ai-generation-policy-v1.0.md` | AI 문서 생성 원칙, 문서 유형별 출력 구조, 참고 자료 사용, 출처 표시, 금지 사항을 정의한다. |
-
----
-
-# 7. 품질 및 운영 문서
-
-## QA
-
-| 문서 | 설명 |
-| --- | --- |
-| `qa/notive-test-plan-v1.0.md` | 기능, 권한, AI, 검색, 관리자, 오류 테스트와 출시 차단 기준을 정의한다. |
-
-## 운영
-
-| 문서 | 설명 |
-| --- | --- |
-| `operations/notive-deployment-operations-guide-v1.0.md` | 환경 구성, 배포, 롤백, 모니터링, 장애 대응, 백업, 운영 업무를 정의한다. |
-
----
-
-# 8. 작업 목적별 참고 문서
-
-## 제품 방향을 확인할 때
-
-* `prd/notive-prd-v1.0.md`
-* `implementation/notive-implementation-plan-v1.0.md`
-
-## 개발 범위를 확인할 때
-
-* `implementation/notive-implementation-plan-v1.0.md`
-* `implementation/notive-implementation-plan-a-foundation-v1.0.md`
-* 각 단계별 세부 구현 계획서
-
-## DB/API 구현을 시작할 때
-
-* `architecture/notive-technical-architecture-v1.0.md`
-* `database/notive-database-design-v1.0.md`
-* `api/notive-api-spec-v1.0.md`
-* `security/notive-permission-policy-v1.0.md`
-
-## 프론트엔드 구현을 시작할 때
-
-* `ux/notive-screen-ux-design-v1.0.md`
-* `api/notive-api-spec-v1.0.md`
-* `security/notive-permission-policy-v1.0.md`
-
-## AI 기능을 구현할 때
-
-* `implementation/notive-implementation-plan-d-ai-document-generation-v1.0.md`
-* `ai/notive-ai-generation-policy-v1.0.md`
-* `security/notive-permission-policy-v1.0.md`
-* `api/notive-api-spec-v1.0.md`
-
-## 검색 기능을 구현할 때
-
-* `implementation/notive-implementation-plan-f-knowledge-search-v1.0.md`
-* `database/notive-database-design-v1.0.md`
-* `api/notive-api-spec-v1.0.md`
-* `security/notive-permission-policy-v1.0.md`
-
-## 출시 전 점검할 때
-
-* `implementation/notive-implementation-plan-h-stabilization-launch-v1.0.md`
-* `qa/notive-test-plan-v1.0.md`
-* `operations/notive-deployment-operations-guide-v1.0.md`
-
----
-
-# 9. 문서 관리 원칙
-
-* 문서 변경 시 관련 문서의 충돌 여부를 확인한다.
-* PRD 변경은 구현 계획과 API/DB/UX 문서에 영향을 줄 수 있다.
-* 권한 정책 변경은 API, DB, UX, QA 문서에 함께 반영해야 한다.
-* AI 생성 정책 변경은 AI 테스트 케이스와 함께 갱신한다.
-* 배포/운영 정책 변경은 QA와 출시 기준에 반영한다.
-
----
-
-# 10. 다음 추천 작업
-
-현재 문서 세트 기준으로 다음 작업을 진행할 수 있다.
-
-1. 미결정 사항 정리 및 의사결정
-2. OpenAPI 스펙 작성
-3. DB 마이그레이션 초안 작성
-4. 프론트엔드 라우팅 설계
-5. Permission Module 상세 설계
-6. AI 프롬프트 상세 문안 작성
-7. QA 체크리스트 세분화
-
----
-
-# 11. Git 브랜치 전략
-
-기본 브랜치 전략은 다음과 같다.
-
-* `main`: 안정 버전과 릴리즈 기준 브랜치
-* `develop`: 개발 통합 브랜치
-* `feature/*`: 개별 기능 개발 브랜치
-* `fix/*`: 버그 수정 브랜치
-* `docs/*`: 문서 수정 브랜치
-
-개별 기능은 `develop`에서 새 브랜치를 만들어 작업하고, 완료 후 검증을 거쳐 `develop`에 머지한다.
-
-예:
+## Repository Structure
 
 ```text
-develop
-  -> feature/auth-foundation
-  -> feature/document-management
-  -> feature/ai-document-generation
+.
+├─ docs/
+│  ├─ ai/
+│  ├─ api/
+│  ├─ architecture/
+│  ├─ assets/
+│  ├─ database/
+│  ├─ implementation/
+│  ├─ operations/
+│  ├─ prd/
+│  ├─ qa/
+│  ├─ security/
+│  └─ ux/
+├─ CLAUDE.md
+├─ CODEX.md
+└─ README.md
 ```
 
-`download/` 폴더와 내부 파일은 Git 업로드 대상에서 제외하며, 코드에서 직접 참조하지 않는다.
+문서 전체 인덱스와 읽는 순서는 [docs/README.md](docs/README.md)를 기준으로 합니다.
+
+---
+
+## Branch Strategy
+
+기본 개발 통합 브랜치는 `develop`입니다.
+
+| Branch | Purpose |
+| --- | --- |
+| `main` | 안정 버전과 릴리즈 기준 |
+| `develop` | 개발 통합 브랜치 |
+| `feature/*` | 개별 기능 개발 |
+| `fix/*` | 버그 수정 |
+| `docs/*` | 문서 수정 |
+
+개별 기능은 `develop`에서 브랜치를 만들어 작업하고, 검증 후 `develop`에 머지합니다.
+
+---
+
+## Collaboration Model
+
+이 프로젝트는 다음 협업 기준을 사용합니다.
+
+* Codex: 설계, 작업 지시, 코드 리뷰, 검증, 품질 판단
+* Claude: 실제 개발 구현, 테스트 작성, 수정 작업
+
+상세 기준은 [CODEX.md](CODEX.md), [CLAUDE.md](CLAUDE.md)를 따릅니다.
+
+---
+
+## Asset Policy
+
+`download/` 폴더는 작업용 원본 자산 보관 위치입니다.
+
+* `download/` 내부 파일은 Git 업로드 대상에서 제외합니다.
+* 코드와 문서에서 `download/` 경로를 직접 참조하지 않습니다.
+* 필요한 로고, 파비콘, 포스터, 샘플 이미지는 프로젝트 내부 적절한 위치로 복사한 뒤 사용합니다.
+
+현재 README 이미지는 `download/`에서 직접 참조하지 않고 `docs/assets/brand/`로 복사한 파일을 사용합니다.
+
+---
+
+## Documentation
+
+| Area | Document |
+| --- | --- |
+| Product | [PRD](docs/prd/notive-prd-v1.0.md) |
+| Implementation | [Overall Plan](docs/implementation/notive-implementation-plan-v1.0.md) |
+| Architecture | [Technical Architecture](docs/architecture/notive-technical-architecture-v1.0.md) |
+| Database | [DB Design](docs/database/notive-database-design-v1.0.md) |
+| API | [API Spec](docs/api/notive-api-spec-v1.0.md) |
+| UX | [Screen/UX Design](docs/ux/notive-screen-ux-design-v1.0.md) |
+| Security | [Permission Policy](docs/security/notive-permission-policy-v1.0.md) |
+| AI | [AI Generation Policy](docs/ai/notive-ai-generation-policy-v1.0.md) |
+| QA | [Test Plan](docs/qa/notive-test-plan-v1.0.md) |
+| Operations | [Deployment & Operations Guide](docs/operations/notive-deployment-operations-guide-v1.0.md) |
+
+---
+
+## Current Status
+
+This repository is currently in planning and foundation setup.
+
+Next development steps:
+
+1. Confirm unresolved product and technical decisions.
+2. Finalize the technology stack.
+3. Draft database migrations.
+4. Scaffold the application.
+5. Start implementation from `develop` using feature branches.
