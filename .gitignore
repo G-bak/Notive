@@ -19,6 +19,8 @@ coverage/
 playwright-report/
 test-results/
 .playwright/
+**/.pgdata/
+**/.bootstrap-pg/
 
 # Environment files
 .env
