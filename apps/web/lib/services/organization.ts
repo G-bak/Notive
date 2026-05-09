@@ -15,10 +15,8 @@
 // name. Slug uniqueness collisions return CONFLICT(slug_taken).
 
 import type { Organization, PrismaClient, User } from "@notive/db";
+import { Errors, requireActiveUser, requireAdmin, requireMembership } from "@notive/permissions";
 import { z } from "zod";
-
-import { Errors } from "../api-error";
-import { requireMembership } from "../permissions";
 
 export const createOrganizationInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -59,9 +57,7 @@ export async function createOrganization(
   rawInput: unknown,
 ): Promise<Organization> {
   // Defense in depth — session validation already enforces this.
-  if (user.status !== "Active") {
-    throw Errors.forbidden("account_not_active");
-  }
+  requireActiveUser(user);
   const parsed = createOrganizationInputSchema.safeParse(rawInput);
   if (!parsed.success) {
     throw Errors.invalid(parsed.error.issues[0]?.message ?? "invalid input");
@@ -130,9 +126,7 @@ export async function updateOrganization(
   rawInput: unknown,
 ): Promise<Organization> {
   const membership = await requireMembership(prisma, userId, organizationId);
-  if (membership.role !== "Admin") {
-    throw Errors.forbidden("admin_only");
-  }
+  requireAdmin(membership);
   const parsed = updateOrganizationInputSchema.safeParse(rawInput);
   if (!parsed.success) {
     throw Errors.invalid(parsed.error.issues[0]?.message ?? "invalid input");

@@ -21,10 +21,8 @@
 import { generateToken, hashToken } from "@notive/auth";
 import type { Invitation, Membership, PrismaClient, RoleCode, User } from "@notive/db";
 import { type MailAdapter, buildInvitationMessage } from "@notive/mail";
+import { Errors, requireActiveUser, requireAdmin, requireMembership } from "@notive/permissions";
 import { z } from "zod";
-
-import { Errors } from "../api-error";
-import { requireAdmin, requireMembership } from "../permissions";
 
 export const createInvitationInputSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -178,9 +176,7 @@ export async function acceptInvitation(
   now: Date = new Date(),
 ): Promise<AcceptInvitationResult> {
   // Session validation already requires Active; defense-in-depth here.
-  if (actingUser.status !== "Active") {
-    throw Errors.forbidden("account_not_active");
-  }
+  requireActiveUser(actingUser);
   const parsed = acceptInvitationInputSchema.safeParse(rawInput);
   if (!parsed.success) {
     throw Errors.invalid("invalid token");

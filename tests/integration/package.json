@@ -12,6 +12,7 @@
     "@notive/auth": "workspace:*",
     "@notive/db": "workspace:*",
     "@notive/mail": "workspace:*",
+    "@notive/permissions": "workspace:*",
     "@notive/shared": "workspace:*",
     "@types/node": "^20.11.30",
     "@types/pg": "^8.11.10",
