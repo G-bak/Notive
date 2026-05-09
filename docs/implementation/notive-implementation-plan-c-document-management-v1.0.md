@@ -441,11 +441,10 @@ C단계 착수 전 B단계에서 다음 항목이 준비되어야 한다.
 | --- | --- |
 | Private | 작성자 또는 소유자 |
 | Team | 지정 팀 사용자 |
-| Department | 지정 부서 사용자 |
 | Organization | 조직 전체 사용자 |
 | Specific Users | 지정 사용자 |
 
-MVP에서는 Team과 Department를 하나의 Team 개념으로 처리할 수 있다.
+MVP는 Department 공유 범위를 두지 않고 Team으로 통합한다(Phase A §15).
 
 ---
 
@@ -455,7 +454,7 @@ MVP에서는 Team과 Department를 하나의 Team 개념으로 처리할 수 있
 * 직접 URL 접근 시에도 권한을 다시 확인한다.
 * 삭제된 문서는 일반 목록에서 제외한다.
 * AI와 검색 기능에서도 동일한 권한 기준을 사용한다.
-* Admin의 전체 문서 접근 허용 여부는 A단계 미결정 사항에 따라 적용한다.
+* Admin은 조직 전체 문서 본문에 대한 묵시적 접근을 가지지 않는다(Phase A §15). 메타데이터만 조회하며, 본문은 일반 권한 규칙(Organization 공개 또는 명시 공유)을 따른다.
 
 ---
 

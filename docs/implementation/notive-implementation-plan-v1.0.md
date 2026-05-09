@@ -116,7 +116,7 @@ Build a baseline environment where users can log in and use the service inside a
 * Initial project structure
 * User signup and login
 * Organization creation and invitations
-* Team / department structure management
+* Team structure management (Department is unified into Team for MVP)
 * Role-based permission handling
 * Base layout and navigation
 
@@ -241,7 +241,7 @@ Provide the minimum feature set for an organization administrator to operate the
 ### Key work
 
 * User invite and deactivation
-* Team / department management
+* Team management
 * Role and permission settings
 * Document template management
 * Usage monitoring
@@ -252,7 +252,7 @@ Provide the minimum feature set for an organization administrator to operate the
 
 * Admin dashboard
 * User management screen
-* Team / department management screen
+* Team management screen
 * Template management screen
 * Activity log screen
 
@@ -298,7 +298,7 @@ The screens needed for the first-pass implementation:
 | Documents | Document list, document detail, document editor, share settings, version history |
 | Work | Work diary, to-do list |
 | Search | Unified search, search-result detail |
-| Admin | User management, team / department management, permission management, template management, activity log |
+| Admin | User management, team management, permission management, template management, activity log |
 | Settings | Personal settings, organization settings, security settings |
 
 ---
@@ -311,7 +311,7 @@ The main data managed during implementation:
 | --- | --- |
 | User | User account information |
 | Organization | Company or organization information |
-| Team | Department or team information |
+| Team | Team unit (Department is unified into Team for MVP) |
 | Role | User role |
 | Permission | Feature and document access permissions |
 | Document | Document body and metadata |
@@ -340,7 +340,7 @@ The initial permission model starts simple and clear.
 Permission decisions also use the following criteria:
 
 * Organization
-* Team / department
+* Team
 * User role
 * Document owner
 * Document share scope
