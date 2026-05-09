@@ -100,6 +100,27 @@ export function buildPasswordResetMessage(params: PasswordResetParams): MailMess
   };
 }
 
+export interface InvitationParams {
+  appBaseUrl: string;
+  email: string;
+  organizationName: string;
+  inviterName: string;
+  token: string;
+  ttlDays: number;
+}
+
+export function buildInvitationMessage(params: InvitationParams): MailMessage {
+  const url = `${trimTrailingSlash(params.appBaseUrl)}/invitations/accept?token=${encodeURIComponent(params.token)}`;
+  return {
+    to: params.email,
+    subject: `[Notive] You've been invited to ${params.organizationName}`,
+    text:
+      `${params.inviterName} invited you to join ${params.organizationName} on Notive.\n\n` +
+      `Accept the invitation by visiting:\n${url}\n\n` +
+      `This invitation expires in ${params.ttlDays} day(s).`,
+  };
+}
+
 function trimTrailingSlash(url: string): string {
   return url.endsWith("/") ? url.slice(0, -1) : url;
 }
