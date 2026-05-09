@@ -15,8 +15,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:integration": "pnpm --filter @notive/tests-integration test",
     "dev:web": "pnpm --filter @notive/web dev",
-    "dev:worker": "pnpm --filter @notive/worker dev"
+    "dev:worker": "pnpm --filter @notive/worker dev",
+    "db:generate": "pnpm --filter @notive/db db:generate",
+    "db:migrate:dev": "pnpm --filter @notive/db db:migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @notive/db db:migrate:deploy",
+    "db:seed": "pnpm --filter @notive/db db:seed"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",

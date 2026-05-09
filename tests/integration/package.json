@@ -1,0 +1,23 @@
+{
+  "name": "@notive/tests-integration",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@notive/db": "workspace:*",
+    "@notive/shared": "workspace:*",
+    "@types/node": "^20.11.30",
+    "@types/pg": "^8.11.10",
+    "embedded-postgres": "16.13.0-beta.17",
+    "pg": "^8.13.1",
+    "prisma": "^5.20.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.1"
+  }
+}

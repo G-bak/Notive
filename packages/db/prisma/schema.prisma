@@ -1,0 +1,278 @@
+// Notive Phase B database schema.
+//
+// Single source: docs/database/notive-database-design-v1.0.md §5–§12.
+// This Prisma schema is derived from that document. If the two diverge,
+// update the doc first, then this file.
+//
+// Constraints that Prisma cannot express in this schema are added as
+// raw SQL migrations. See prisma/migrations/* — specifically:
+//   - active_membership_unique: partial unique on memberships(user_id)
+//     WHERE status='Active' AND deleted_at IS NULL
+//   - last_admin_protection: trigger on memberships UPDATE/DELETE that
+//     blocks demoting/disabling/removing the last active Admin.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------
+
+enum UserStatus {
+  Active
+  Pending
+  Disabled
+  Deleted
+}
+
+enum OrganizationStatus {
+  Active
+  Suspended
+  Deleted
+}
+
+enum TeamStatus {
+  Active
+  Archived
+  Deleted
+}
+
+enum MembershipStatus {
+  Active
+  Invited
+  Disabled
+  Removed
+}
+
+enum InvitationStatus {
+  Pending
+  Accepted
+  Expired
+  Revoked
+}
+
+/// System role codes. Phase A §15 / Phase B §9.
+enum RoleCode {
+  Viewer
+  Editor
+  Manager
+  Admin
+}
+
+enum ActivityResult {
+  Success
+  Failed
+}
+
+// ---------------------------------------------------------------------
+// Auth / user tables (DB design §5)
+// ---------------------------------------------------------------------
+
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  name            String
+  email           String     @unique
+  passwordHash    String     @map("password_hash")
+  profileImageUrl String?    @map("profile_image_url")
+  status          UserStatus @default(Pending)
+  emailVerifiedAt DateTime?  @map("email_verified_at")
+  lastLoginAt     DateTime?  @map("last_login_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  deletedAt       DateTime?  @map("deleted_at")
+
+  sessions          Session[]
+  memberships       Membership[]
+  sentInvitations   Invitation[]   @relation("InvitedBy")
+  createdOrgs       Organization[] @relation("OrgCreatedBy")
+  managedTeams      Team[]         @relation("TeamManager")
+  activityLogs      ActivityLog[]  @relation("ActivityActor")
+
+  @@index([status])
+  @@map("users")
+}
+
+model Session {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model Invitation {
+  id              String           @id @default(uuid()) @db.Uuid
+  organizationId  String           @map("organization_id") @db.Uuid
+  email           String
+  role            RoleCode
+  teamId          String?          @map("team_id") @db.Uuid
+  invitedByUserId String           @map("invited_by_user_id") @db.Uuid
+  tokenHash       String           @unique @map("token_hash")
+  status          InvitationStatus @default(Pending)
+  expiresAt       DateTime         @map("expires_at")
+  acceptedAt      DateTime?        @map("accepted_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team         Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  invitedBy    User         @relation("InvitedBy", fields: [invitedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, email, status])
+  @@index([expiresAt])
+  @@map("invitations")
+}
+
+// ---------------------------------------------------------------------
+// Organization / permission tables (DB design §6)
+// ---------------------------------------------------------------------
+
+model Organization {
+  id              String             @id @default(uuid()) @db.Uuid
+  name            String
+  slug            String             @unique
+  status          OrganizationStatus @default(Active)
+  createdByUserId String             @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  deletedAt       DateTime?          @map("deleted_at")
+
+  createdBy    User                 @relation("OrgCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  teams        Team[]
+  memberships  Membership[]
+  invitations  Invitation[]
+  settings     OrganizationSetting?
+  activityLogs ActivityLog[]
+
+  @@index([status])
+  @@map("organizations")
+}
+
+model Team {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  name           String
+  description    String?
+  parentTeamId   String?    @map("parent_team_id") @db.Uuid
+  managerUserId  String?    @map("manager_user_id") @db.Uuid
+  status         TeamStatus @default(Active)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  deletedAt      DateTime?  @map("deleted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parentTeam   Team?        @relation("TeamHierarchy", fields: [parentTeamId], references: [id], onDelete: SetNull)
+  childTeams   Team[]       @relation("TeamHierarchy")
+  manager      User?        @relation("TeamManager", fields: [managerUserId], references: [id], onDelete: SetNull)
+  memberships  Membership[]
+  invitations  Invitation[]
+
+  @@index([organizationId, name])
+  @@index([organizationId, status])
+  @@map("teams")
+}
+
+/// Role definitions. System roles have organization_id=null and is_system=true.
+/// Custom org-level roles can be added later (post-MVP).
+model Role {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @map("organization_id") @db.Uuid
+  code           RoleCode
+  name           String
+  description    String?
+  isSystem       Boolean  @default(false) @map("is_system")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // System roles: code is unique when organizationId is null.
+  // Custom roles per org: code is unique within that org.
+  // PostgreSQL treats NULLs as distinct, so this tuple constraint does
+  // not enforce system-role uniqueness. The separate raw SQL migration
+  // `system_role_unique` adds the partial unique index for system roles.
+  @@unique([code, organizationId])
+  @@map("roles")
+}
+
+model Membership {
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  /// Single primary team (Phase A §15). Multi-team membership is deferred.
+  /// May be null for users not yet assigned to any team within the org.
+  teamId         String?          @map("team_id") @db.Uuid
+  role           RoleCode
+  status         MembershipStatus @default(Active)
+  joinedAt       DateTime         @default(now()) @map("joined_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  deletedAt      DateTime?        @map("deleted_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team         Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  // (user_id, organization_id) unique: at most one membership row per
+  // (user, org). The "single Active membership across all orgs"
+  // constraint (Phase A §15: 1 user = 1 organization for MVP) is
+  // enforced by a separate partial unique index. See the migration
+  // active_membership_unique.
+  @@unique([userId, organizationId])
+  @@index([organizationId, role])
+  @@index([organizationId, teamId])
+  @@index([organizationId, status])
+  @@map("memberships")
+}
+
+// ---------------------------------------------------------------------
+// Operations / settings (DB design §12)
+// ---------------------------------------------------------------------
+
+model OrganizationSetting {
+  organizationId String   @id @map("organization_id") @db.Uuid
+  defaultRole    RoleCode @default(Editor) @map("default_role")
+  defaultTeamId  String?  @map("default_team_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_settings")
+}
+
+model ActivityLog {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  actorUserId    String?        @map("actor_user_id") @db.Uuid
+  action         String
+  targetType     String?        @map("target_type")
+  targetId       String?        @map("target_id")
+  result         ActivityResult
+  metadata       Json?
+  ipAddress      String?        @map("ip_address")
+  userAgent      String?        @map("user_agent")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?        @relation("ActivityActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, actorUserId, createdAt])
+  @@index([organizationId, action, createdAt])
+  @@map("activity_logs")
+}

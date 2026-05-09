@@ -10,13 +10,31 @@
       "types": "./src/index.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./prisma-error-codes": {
+      "types": "./src/prisma-error-codes.ts",
+      "import": "./dist/prisma-error-codes.js",
+      "default": "./dist/prisma-error-codes.js"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit"
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "prisma generate",
+    "db:generate": "dotenv -e ../../.env -- prisma generate",
+    "db:migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
+    "db:migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
+    "db:reset": "dotenv -e ../../.env -- prisma migrate reset",
+    "db:seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
+    "db:studio": "dotenv -e ../../.env -- prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.20.0"
   },
   "devDependencies": {
+    "dotenv-cli": "^7.4.2",
+    "prisma": "^5.20.0",
+    "tsx": "^4.19.0",
     "typescript": "^5.5.4"
   }
 }

@@ -13,8 +13,17 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
-    exclude: ["**/node_modules/**", "**/dist/**", "**/.next/**", "tests/e2e/**"],
+    // Integration tests live in tests/integration and have their own
+    // vitest config (they need an embedded Postgres). Run them via
+    // `pnpm test:integration`.
+    include: ["tests/unit/**/*.test.ts"],
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.next/**",
+      "tests/e2e/**",
+      "tests/integration/**",
+    ],
     environment: "node",
     reporters: ["default"],
   },
