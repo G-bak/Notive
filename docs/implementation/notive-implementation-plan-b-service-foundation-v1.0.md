@@ -601,9 +601,9 @@ Implementation follows this strict order. Each step depends on the previous step
 | 4 | Auth / session | signup, email verification, login, logout, password reset, server session, password policy enforcement |
 | 5 | Organization / team / membership | org creation (creator becomes Admin), team CRUD, single-active-membership constraint, last-Admin protection at DB + app |
 | 6 | Permission Module | central denial paths, NOT_FOUND default, FORBIDDEN with `reason_code`, integration with route handlers |
-| 7 | Admin skeleton | admin home placeholder, user list, role change UI, invite create/revoke |
-| 8 | Audit log skeleton | `activity_logs` writer interface, B-phase events wired (login, invite, role change, disable/enable, last-Admin block), Admin-only `GET` endpoint |
-| 9 | Tests | §16 checklist green in Vitest (unit + integration) and Playwright (E2E auth + permission flows) |
+| 7 | Admin skeleton (server-side API only) | admin home placeholder endpoint, member list endpoint, role-change / team-change / deactivate / reactivate endpoint wrappers around the Step 5 services, invite create / cancel wrappers. No React / UI in this step. |
+| 8 | Audit log skeleton | `activity_logs` writer interface, B-phase **success** events wired (login success, logout, password-reset complete, organization create / update, team create / update / archive, membership role / team change / deactivate / reactivate, invitation create / cancel / accept), Admin-only `GET` endpoint. Failed-attempt events and last-Admin-block records are deferred to Phase G. |
+| 9 | Tests / CI gate | §16.1–§16.6 checklist green in Vitest (unit + integration). GitHub Actions workflow runs install, typecheck, lint, format check, vitest unit, vitest integration, build. §16.7 (infra readiness) is a separate staging smoke. |
 
 A step is not complete until its tests are green. Step 9 collects the tests written in earlier steps; it is not a separate "write all tests at the end" phase. Each step writes its own tests as it lands.
 
@@ -652,8 +652,7 @@ Test setup is part of step 1 of §13.6 and lives in the repo from day one.
 
 ### Playwright
 
-* E2E suites for the auth flow (signup → verify → login → logout), invite flow (Admin invite → accept → membership), and permission flow (Viewer denied AI menu, Editor denied Admin URL, Manager denied Admin endpoint).
-* Tests run against a Staging-like environment with seeded users.
+Phase B installs Playwright and lays out `tests/e2e/` as **scaffold only**. No E2E scenarios are authored in B because Phase B does not ship UI — the user-facing screens (auth pages, invite-accept page, admin pages) arrive in later phases. Real E2E suites for the auth flow, invite flow, and permission flow are written in those follow-on phases, on top of the API surface that Phase B already exercises through Vitest integration tests.
 
 ### Lint / Format
 
@@ -662,8 +661,8 @@ Test setup is part of step 1 of §13.6 and lives in the repo from day one.
 
 ### CI
 
-* CI must run: type-check (`tsc --noEmit`), `eslint`, `prettier --check`, `vitest run`, `playwright test` (Playwright on a separate job to keep PR feedback fast).
-* CI runs `prisma migrate deploy` against an ephemeral test DB before tests.
+* CI runs, in this order: `pnpm install --frozen-lockfile`, type-check (`tsc --noEmit`, all workspaces), `eslint`, `prettier --check`, `vitest run` (unit), `pnpm test:integration` (Vitest integration; the integration tests' global setup boots `embedded-postgres` and applies `prisma migrate deploy` on a clean DB on every run, which folds the migrate-deploy gate into the integration step), and `next build` + worker build.
+* Playwright is **not** wired into the CI workflow in Phase B — see the §13.8 Playwright note above.
 
 ---
 
@@ -685,7 +684,12 @@ Migrations explicitly **not** in B: documents, document_versions, document_share
 
 Each migration must include:
 
-* Forward + backward script.
+* A forward script (Prisma generates `migration.sql`). Phase B follows
+  Prisma's forward-only migration convention: rollbacks are not authored
+  as backward scripts. If a deployed migration needs to be undone, a new
+  forward migration is written that reverses the relevant change. This
+  matches `prisma migrate deploy` semantics and avoids the dual-script
+  drift seen in hand-rolled migration tools.
 * `organization_id` indexes per DB design §14.1.
 * Soft-delete fields per DB design §15.1 (where applicable).
 * No raw default values that would fail after deploy (e.g., add NOT NULL columns with backfill in two steps if data exists).
@@ -725,17 +729,27 @@ Endpoints to ship in B (one section per group; full request / response shapes li
 
 ## 15.5 Membership
 
-* `GET /organizations/{id}/members`
-* `PATCH /organizations/{id}/members/{userId}` (Admin only; role change, team change; last-Admin protection enforced)
-* `POST /organizations/{id}/members/{userId}/disable` (Admin only; last-Admin protection enforced)
-* `POST /organizations/{id}/members/{userId}/enable` (Admin only)
+The membership routes address rows by `membershipId`, not `userId`. This
+is the implementation lock: the membership row's primary key is the
+stable identifier used by Admin tooling, and using it avoids ambiguity
+when a user has had multiple historical memberships in the same org.
+Role change and team change are split into separate sub-resources for
+clean audit-log mapping.
+
+* `GET /organizations/{id}/memberships` (Admin only — Phase B B-stage admin API surface)
+* `PATCH /organizations/{id}/memberships/{membershipId}/role` (Admin only; last-Admin protection enforced)
+* `PATCH /organizations/{id}/memberships/{membershipId}/team` (Admin only)
+* `POST /organizations/{id}/memberships/{membershipId}/deactivate` (Admin only; last-Admin protection enforced)
+* `POST /organizations/{id}/memberships/{membershipId}/reactivate` (Admin only; rejects when target user already has another active membership)
+
+The same handlers are mirrored under `/organizations/{id}/admin/members/{membershipId}/...` for the Step 7 admin skeleton; both paths delegate to the same service so policy stays in one place.
 
 ## 15.6 Invitation
 
-* `POST /organizations/{id}/invitations` (Admin only; Codex decision)
-* `GET /organizations/{id}/invitations`
-* `POST /organizations/{id}/invitations/{invitationId}/revoke` (Admin only)
-* `POST /invitations/{token}/accept` (target user; rejects if invited email ≠ logged-in account; rejects if user already has an active membership elsewhere)
+* `POST /organizations/{id}/invitations` (Admin only; Manager → FORBIDDEN(`manager_cannot_invite`))
+* `GET /organizations/{id}/invitations` (Admin only)
+* `POST /organizations/{id}/invitations/{invitationId}/cancel` (Admin only — implementation name is `cancel`, status moves to `Revoked`)
+* `POST /invitations/accept` (target user; the raw token is sent in the **request body** as `{ "token": "..." }`, not as a URL segment, so it never appears in server access logs or referrer headers; rejects if invited email ≠ logged-in account, rejects if user already has an active membership elsewhere)
 
 ## 15.7 ActivityLog (skeleton)
 
@@ -786,17 +800,35 @@ Every item below must pass before B is considered done.
 
 ## 16.6 Audit log writes (skeleton)
 
-* Login success / failure events are written.
-* Invite create / accept / revoke events are written.
-* Role change events are written.
-* User disable / enable events are written.
-* Each entry contains actor, target, action, result, IP, user agent, timestamp.
+Phase B writes a *skeleton* set of events into the existing
+`activity_logs` table. The full audit surface (failed events, IP /
+User-Agent capture, retention, queryable analytics) ships in Phase G;
+locking the `activity_logs` schema now means Phase G adds writers, not
+columns. Step 8 is intentionally narrower than Phase G's eventual goal.
+
+In B, the following must hold:
+
+* Login success events are written. **Failed login events are deferred to Phase G** — skeleton is success-only so a failure of the audit writer never blocks login itself.
+* Invite create / cancel (`Revoked`) / accept events are written.
+* Membership role change events are written.
+* Membership deactivate / reactivate events are written (the doc's earlier "user disable / enable" wording maps to membership-level deactivate / reactivate; user-level disable / enable is a Phase G admin operation).
+* Each entry records `actor_user_id`, `target_type`, `target_id`, `action`, `result`, `metadata` (JSON), and `created_at`. **`ip_address` and `user_agent` columns exist on the table but are not populated in B** — capture is deferred to Phase G when the request-pipeline header extraction policy is set.
+* The writer is best-effort: a failed audit insert logs to stderr but does not break the user-facing operation.
+* Auth events (`auth.login`, `auth.logout`, `auth.password_reset.completed`) are recorded under the actor's currently-active organization. Users without an active membership do not produce auth audit rows in B because `activity_logs.organization_id` is `NOT NULL`; system-level event capture (covering pre-membership login) is also a Phase G task.
 
 ## 16.7 Infra readiness
 
-* Redis (or chosen short-term store) responds to a healthcheck from the running app.
-* The cleanup worker can run a dry-run job and reports success.
-* Mail provider can deliver a verification email in staging.
+These three items are **staging-only smoke checks**, not CI gates. The
+CI workflow in `.github/workflows/ci.yml` cannot exercise them because
+they require external services (Redis, an SMTP provider, a real worker
+runtime) that are not available inside the `embedded-postgres`-based
+test environment. They must be confirmed once on the staging cluster
+before Phase B is declared production-ready, and the result tracked
+outside the per-PR CI loop:
+
+* Redis (or chosen short-term store) responds to a healthcheck from the running app. Phase B keeps Redis env-validated only (Phase A §15: no business writes in B); the actual healthcheck is wired in Phase D when caching / queues land.
+* The cleanup worker can run a dry-run job and reports success. Phase B ships the worker entrypoint as a dry-run skeleton (`WORKER_DESTRUCTIVE_OPS=false` by default); a real dry-run pass on staging is the §16.7 check.
+* Mail provider can deliver a verification email in staging. Phase B uses a console / in-memory mail adapter in dev and tests; the production adapter is wired by environment configuration. The staging delivery test confirms that wiring.
 
 ---
 
@@ -813,20 +845,19 @@ Phase B is done when **all** of the following are true.
 ### Stack and scaffolding
 
 * Repository structure matches §13.5.
-* Tech stack matches §13.4 lock (Next.js App Router / TypeScript / Node.js LTS / Prisma / pnpm / Vitest+Playwright / ESLint+Prettier).
-* `.env.example` covers every required variable in §13.7; app bootstrap fails fast on missing required vars.
-* `prisma migrate deploy` succeeds in Staging from a clean DB.
+* Tech stack matches §13.4 lock (Next.js App Router / TypeScript / Node.js LTS / Prisma / pnpm / Vitest / ESLint / Prettier). Playwright is installed for future E2E scenarios but is **not** part of the Phase B done criteria — `tests/e2e/` is scaffolding only in B, with real flows authored in later phases.
+* `.env.example` covers every required variable in §13.7; app bootstrap fails fast on missing required vars (server start), while `next build` no longer requires a populated env (Step 4 lazy `getEnv()` change).
+* `prisma migrate deploy` succeeds in Staging from a clean DB. The same path is exercised in CI via the integration tests' global setup, which boots `embedded-postgres` and applies all migrations on every run.
 
 ### Functional
 
-* §16 checklist passes end-to-end in Staging (Vitest + Playwright + manual smoke).
-* Production deployment succeeds with the §14 migrations.
-* The single container image builds from the repo and runs as Web/API or Worker by command with the same env contract.
+* §16.1–§16.6 checklist passes via `pnpm test` + `pnpm test:integration` (CI-gated). §16.7 (Infra readiness) is a staging-only smoke check — see the note in §16.7.
+* The single container image builds from the repo and runs as Web/API or Worker by command with the same env contract. (Production deployment itself is Phase H scope; Phase B's bar is "ready for staging deployment".)
 
 ### CI
 
-* Type-check, ESLint, Prettier check, Vitest, Playwright all run in CI on every PR.
-* PRs cannot merge to `develop` with a red CI.
+* `.github/workflows/ci.yml` runs type-check, ESLint, Prettier check, Vitest unit, Vitest integration, and `next build` on every push / PR to `develop` or `main`. Playwright is **not** wired into the workflow in B.
+* The "PRs cannot merge to `develop` with a red CI" rule is enforced at the GitHub repository settings layer (branch protection + required status checks), which lives outside this plan document. The plan's responsibility is to provide the workflow; the platform team turns on the rule.
 
 ---
 
@@ -845,7 +876,7 @@ Phase B is done when **all** of the following are true.
 | Multi-team migration cost | Customer pulls multi-team forward | Schema change is bounded (add `membership_teams` join table) but permission rewrites are wide; require explicit Phase A §15 update first |
 | Prisma schema vs DB design drift | The Prisma schema and the DB design doc could diverge silently | DB design doc is the single source; implementation PRs must cite the matching DB design section and Codex verifies schema alignment |
 | Container image bloat | Web + Worker shared image could grow large | Build a single image with multiple entrypoints; verify image size stays under a budget (define in B-phase infra implementation) |
-| CI minutes vs Playwright cost | E2E suite slows PR feedback | Run Playwright in a separate job; gate on a smaller smoke set per PR, full suite on `develop` merges |
+| Future E2E cost (deferred) | Phase B does not run Playwright in CI; once UI lands and real E2E suites are authored in a follow-on phase, the PR-feedback budget needs to be re-planned | Revisit when the first UI phase introduces E2E scenarios — choose between a separate Playwright job, a smoke-on-PR + full-on-merge split, or a parallel matrix; not a Phase B blocker |
 | Env validation gaps | Missing env var only fails deep into a request path | Validate at app bootstrap (§13.7); fail fast and log which key is missing |
 
 ---
