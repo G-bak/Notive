@@ -502,6 +502,171 @@ Phase B builds the worker entrypoint, cron schedule registration, idempotency pr
 
 ---
 
+## 13.4 Locked Tech Stack (Codex decision)
+
+| Area | Lock |
+| --- | --- |
+| Web framework | Next.js App Router |
+| Language | TypeScript |
+| Runtime | Node.js LTS |
+| DB | PostgreSQL (managed) |
+| ORM / migration | Prisma (schema and migrations derived from DB design doc; DB design remains the source of truth) |
+| Session storage | PostgreSQL-backed server session (`sessions` table) |
+| Short-term store | Redis-compatible service |
+| Background jobs | Worker / cron entrypoint, dry-run by default in B |
+| Package manager | pnpm |
+| Test baseline | Vitest (unit/integration) + Playwright (E2E) |
+| Lint / format | ESLint + Prettier |
+| Deployment assumption | Container-friendly single image with Web/API and Worker entrypoints; managed PostgreSQL; Redis-compatible store |
+
+The concrete cloud provider, mail provider, and Redis-compatible service are selected during B-phase infrastructure implementation and require Codex verification. They are not part of this lock.
+
+See `docs/architecture/notive-technical-architecture-v1.0.md` §5.1 for the architecture-level lock and `docs/operations/notive-deployment-operations-guide-v1.0.md` §4.1 for the operations view.
+
+---
+
+## 13.5 Project Directory Structure
+
+The Phase B scaffold creates the following layout. Names are illustrative; the lock is on the **shape**, not exact filenames.
+
+```text
+notive/
+├─ apps/
+│  ├─ web/                          # Next.js App Router (Web + API route handlers)
+│  │  ├─ app/
+│  │  │  ├─ (auth)/                 # signup / login / verify-email / password-reset
+│  │  │  ├─ (onboarding)/           # org create / invite accept
+│  │  │  ├─ (app)/                  # home, settings, admin (placeholders)
+│  │  │  ├─ api/                    # route handlers (REST endpoints)
+│  │  │  └─ layout.tsx
+│  │  ├─ components/
+│  │  ├─ lib/                       # client-safe utilities only
+│  │  └─ next.config.ts
+│  └─ worker/                       # Node.js worker entrypoint
+│     └─ src/
+│        ├─ jobs/                   # registered cron jobs (B: empty / dry-run only)
+│        └─ index.ts
+├─ packages/
+│  ├─ db/                           # Prisma schema + generated client
+│  │  ├─ prisma/
+│  │  │  ├─ schema.prisma
+│  │  │  └─ migrations/
+│  │  └─ src/
+│  │     └─ index.ts                # re-exports prisma client
+│  ├─ auth/                         # signup, login, session, password, email verify
+│  ├─ permissions/                  # central Permission Module (§9 lives here)
+│  ├─ mail/                         # mail provider adapter
+│  ├─ redis/                        # redis client + healthcheck (no business use in B)
+│  └─ shared/                       # shared TS types, error codes, constants
+├─ tests/
+│  ├─ unit/                         # Vitest
+│  ├─ integration/                  # Vitest with real Postgres (test container)
+│  └─ e2e/                          # Playwright
+├─ scripts/
+│  ├─ db-seed.ts                    # role rows, dev fixtures
+│  └─ workers-dryrun.ts             # local cron dry-run
+├─ .env.example
+├─ docker/
+│  ├─ Dockerfile                    # single image; web/worker selected by command
+│  └─ docker-compose.yml            # local dev: Postgres + Redis + mail mock
+├─ .eslintrc.cjs
+├─ .prettierrc
+├─ vitest.config.ts
+├─ playwright.config.ts
+├─ tsconfig.base.json
+├─ pnpm-workspace.yaml
+├─ package.json
+└─ README.md
+```
+
+Constraints on the shape:
+
+* Permission Module lives in `packages/permissions` and is the only place that emits permission-denial responses. App route handlers must call into it.
+* `packages/db` is the only place that imports `@prisma/client` directly.
+* Web/API and Worker use the same built image with different commands (`pnpm start:web`, `pnpm start:worker`).
+* Worker code in `apps/worker` must not import Next.js. It runs as a plain Node.js process.
+* `packages/redis` exposes only a typed client and healthcheck in B; business helpers are added in D.
+
+---
+
+## 13.6 Phase B Implementation Order
+
+Implementation follows this strict order. Each step depends on the previous step's tests passing.
+
+| # | Step | Output |
+| --- | --- | --- |
+| 1 | Repo / app scaffold | pnpm workspace, Next.js app, worker entrypoint, ESLint+Prettier, Vitest+Playwright configs, base CI |
+| 2 | Env / config | `.env.example`, env validation at app bootstrap, secret loading per environment |
+| 3 | DB / Prisma schema | `prisma/schema.prisma` derived from DB design §5–§12, initial migration applied to local + staging, role row seed |
+| 4 | Auth / session | signup, email verification, login, logout, password reset, server session, password policy enforcement |
+| 5 | Organization / team / membership | org creation (creator becomes Admin), team CRUD, single-active-membership constraint, last-Admin protection at DB + app |
+| 6 | Permission Module | central denial paths, NOT_FOUND default, FORBIDDEN with `reason_code`, integration with route handlers |
+| 7 | Admin skeleton | admin home placeholder, user list, role change UI, invite create/revoke |
+| 8 | Audit log skeleton | `activity_logs` writer interface, B-phase events wired (login, invite, role change, disable/enable, last-Admin block), Admin-only `GET` endpoint |
+| 9 | Tests | §16 checklist green in Vitest (unit + integration) and Playwright (E2E auth + permission flows) |
+
+A step is not complete until its tests are green. Step 9 collects the tests written in earlier steps; it is not a separate "write all tests at the end" phase. Each step writes its own tests as it lands.
+
+---
+
+## 13.7 Required Environment Variables
+
+Phase B needs the following before development starts. Full list with descriptions lives in `docs/operations/notive-deployment-operations-guide-v1.0.md` §4.2.
+
+Required (B-phase):
+
+* `NODE_ENV`
+* `APP_BASE_URL`
+* `LOG_LEVEL`
+* `DATABASE_URL` / `DIRECT_DATABASE_URL`
+* `REDIS_URL`
+* `SESSION_SECRET`
+* `SESSION_IDLE_TTL_DAYS`
+* `SESSION_ABSOLUTE_TTL_DAYS`
+* `PASSWORD_RESET_TTL_MINUTES`
+* `MAIL_PROVIDER_API_KEY`
+* `MAIL_FROM_ADDRESS`
+* `MAIL_VERIFY_TTL_HOURS`
+* `MAIL_INVITE_TTL_DAYS`
+* `WORKER_DESTRUCTIVE_OPS` (default `false`)
+* `WORKER_RUN_INTERVAL_OVERRIDE` (empty in production)
+
+Not required in B but reserved (do not collide):
+
+* `STORAGE_ACCESS_KEY` / `STORAGE_SECRET_KEY` / `STORAGE_BUCKET` (C/이후)
+* `AI_API_KEY` / `AI_API_BASE_URL` (D)
+
+App bootstrap must validate the required env vars and fail fast if any are missing.
+
+---
+
+## 13.8 Test Baseline
+
+Test setup is part of step 1 of §13.6 and lives in the repo from day one.
+
+### Vitest
+
+* Unit tests: pure functions, validators, permission helpers, password policy, last-Admin invariant logic.
+* Integration tests: against a real PostgreSQL (test container or per-test schema) via Prisma. No mocking of Prisma.
+* Coverage gate is not blocking in B but unit + integration paths must cover §16.1–§16.6.
+
+### Playwright
+
+* E2E suites for the auth flow (signup → verify → login → logout), invite flow (Admin invite → accept → membership), and permission flow (Viewer denied AI menu, Editor denied Admin URL, Manager denied Admin endpoint).
+* Tests run against a Staging-like environment with seeded users.
+
+### Lint / Format
+
+* ESLint runs in CI on every PR; warnings allowed, errors blocking.
+* Prettier runs as a check (`prettier --check`) in CI; auto-format locally.
+
+### CI
+
+* CI must run: type-check (`tsc --noEmit`), `eslint`, `prettier --check`, `vitest run`, `playwright test` (Playwright on a separate job to keep PR feedback fast).
+* CI runs `prisma migrate deploy` against an ephemeral test DB before tests.
+
+---
+
 # 14. Phase B DB Migration Checklist
 
 Migrations to ship in B (in order):
@@ -639,11 +804,29 @@ Every item below must pass before B is considered done.
 
 Phase B is done when **all** of the following are true.
 
-* §16 checklist passes end-to-end in Staging.
+### Documentation alignment
+
 * Phase A §17 entry criteria remain satisfied (no documents drifted out of alignment).
 * Codex review confirms no documents conflict with the §15 locks.
+* Operations doc §13.4 (cleanup workers) reflects the registered B-phase jobs (even if empty in B).
+
+### Stack and scaffolding
+
+* Repository structure matches §13.5.
+* Tech stack matches §13.4 lock (Next.js App Router / TypeScript / Node.js LTS / Prisma / pnpm / Vitest+Playwright / ESLint+Prettier).
+* `.env.example` covers every required variable in §13.7; app bootstrap fails fast on missing required vars.
+* `prisma migrate deploy` succeeds in Staging from a clean DB.
+
+### Functional
+
+* §16 checklist passes end-to-end in Staging (Vitest + Playwright + manual smoke).
 * Production deployment succeeds with the §14 migrations.
-* Operations doc §3 (cleanup workers section) reflects the registered B-phase jobs (even if empty in B).
+* The single container image builds from the repo and runs as Web/API or Worker by command with the same env contract.
+
+### CI
+
+* Type-check, ESLint, Prettier check, Vitest, Playwright all run in CI on every PR.
+* PRs cannot merge to `develop` with a red CI.
 
 ---
 
@@ -660,6 +843,10 @@ Phase B is done when **all** of the following are true.
 | Cleanup worker pre-arming risk | A misconfigured cron could run a destructive job in B before C / D land | Default all jobs to dry-run; require an explicit env flag to enable destructive operations |
 | Audit log skeleton drifts from Phase G | Phase B writes a subset; Phase G might want different schema | Lock `activity_logs` schema now per DB design §12.1; Phase G adds writers, not columns |
 | Multi-team migration cost | Customer pulls multi-team forward | Schema change is bounded (add `membership_teams` join table) but permission rewrites are wide; require explicit Phase A §15 update first |
+| Prisma schema vs DB design drift | The Prisma schema and the DB design doc could diverge silently | DB design doc is the single source; implementation PRs must cite the matching DB design section and Codex verifies schema alignment |
+| Container image bloat | Web + Worker shared image could grow large | Build a single image with multiple entrypoints; verify image size stays under a budget (define in B-phase infra implementation) |
+| CI minutes vs Playwright cost | E2E suite slows PR feedback | Run Playwright in a separate job; gate on a smaller smoke set per PR, full suite on `develop` merges |
+| Env validation gaps | Missing env var only fails deep into a request path | Validate at app bootstrap (§13.7); fail fast and log which key is missing |
 
 ---
 
