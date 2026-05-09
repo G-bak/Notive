@@ -289,6 +289,70 @@ describe("auth flow", () => {
     });
   });
 
+  // §16.1 "Cannot log in to a Disabled account."
+  it("login on a Disabled user reports ACCOUNT_DISABLED only after correct password", async () => {
+    // Email is normalized to lowercase by signup; the lookup must
+    // match that exact form.
+    const email = "logindisabled@example.test";
+    const password = "Strong!Pass123";
+    const { emailVerificationToken } = await signup(
+      prisma,
+      mail,
+      { name: "LoginDis", email, password },
+      { appBaseUrl: APP_BASE_URL, verifyTtlHours: VERIFY_TTL_HOURS },
+    );
+    await verifyEmail(prisma, { token: emailVerificationToken });
+    await prisma.user.update({ where: { email }, data: { status: "Disabled" } });
+    // Wrong password on a Disabled account must look identical to the
+    // wrong-password-on-Active path (no enumeration).
+    await expect(
+      login(prisma, { email, password: "Wrong!Pass1234" }, { ttl: SESSION_TTL }),
+    ).rejects.toMatchObject({ code: "INVALID_CREDENTIALS" });
+    // Correct password on a Disabled account surfaces ACCOUNT_DISABLED.
+    await expect(login(prisma, { email, password }, { ttl: SESSION_TTL })).rejects.toMatchObject({
+      code: "ACCOUNT_DISABLED",
+    });
+  });
+
+  // §16.1 "Session expires after the configured idle / absolute window."
+  // Idle expiry is covered above; this case pins the *absolute* cap.
+  // The implementation enforces the cap through renewal clamping rather
+  // than a wall-clock check: validateSession never extends `expires_at`
+  // past `created_at + absoluteDays`. So the *next* validation after
+  // the renewal sees `expires_at` clamped into the past and rejects.
+  it("session validation clamps renewal to the absolute TTL cap", async () => {
+    const email = "abscap@example.test";
+    const password = "Strong!Pass123";
+    const { emailVerificationToken } = await signup(
+      prisma,
+      mail,
+      { name: "AbsCap", email, password },
+      { appBaseUrl: APP_BASE_URL, verifyTtlHours: VERIFY_TTL_HOURS },
+    );
+    await verifyEmail(prisma, { token: emailVerificationToken });
+    const { token, session } = await login(prisma, { email, password }, { ttl: SESSION_TTL });
+    // Move createdAt past the absolute cap. Stored expiresAt is still
+    // in the future from the initial login, so the first validate
+    // succeeds but the renewal clamps expiresAt to createdAt + abs
+    // (which is now in the past).
+    const farPast = new Date(Date.now() - (SESSION_TTL.absoluteDays + 1) * 24 * 60 * 60 * 1000);
+    await prisma.session.update({
+      where: { id: session.id },
+      data: { createdAt: farPast },
+    });
+
+    await validateSession(prisma, token, SESSION_TTL);
+    const renewed = await prisma.session.findUnique({ where: { id: session.id } });
+    const absoluteCapMs = farPast.getTime() + SESSION_TTL.absoluteDays * 24 * 60 * 60 * 1000;
+    expect(renewed!.expiresAt.getTime()).toBeLessThanOrEqual(absoluteCapMs);
+    expect(renewed!.expiresAt.getTime()).toBeLessThan(Date.now());
+
+    // The next validation must reject — expiresAt is now in the past.
+    await expect(validateSession(prisma, token, SESSION_TTL)).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+  });
+
   it("password reset: request + confirm replaces password and revokes existing sessions", async () => {
     const email = "reset@example.test";
     const oldPassword = "Strong!Pass123";

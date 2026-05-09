@@ -1,0 +1,84 @@
+# Notive CI gate.
+#
+# This workflow is the gate for `develop` and any PR targeting `develop`
+# or `main`. It runs the same commands a developer can run locally so
+# the contract is identical:
+#
+#   pnpm install                — reproducible dependency install
+#   pnpm typecheck              — every workspace's tsc --noEmit
+#   pnpm lint                   — eslint
+#   pnpm format                 — prettier --check
+#   pnpm test                   — vitest (unit)
+#   pnpm test:integration       — vitest (integration; embeds Postgres
+#                                  via `embedded-postgres`, so no
+#                                  external DB service is required)
+#   pnpm build                  — next build + worker build
+#
+# `prisma migrate deploy` is exercised inside the integration tests'
+# global-setup (it boots embedded-postgres and applies all migrations
+# from a clean DB). That counts as the migrate-deploy gate.
+#
+# Notes:
+# - Node 20 LTS matches the engines field in package.json.
+# - pnpm 9.15.9 matches the packageManager pin.
+# - The build step runs WITHOUT a real .env. Step 4 changed
+#   apps/web/lib/env.ts so the import does not validate at build
+#   time; instrumentation.ts validates at server start instead.
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel an in-progress run for the same ref when a new commit lands.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: lint / typecheck / test / build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format
+
+      - name: Unit tests
+        run: pnpm test
+
+      # Boots embedded-postgres in-process and runs `prisma migrate
+      # deploy` from a clean DB. This is the migrate-deploy + integration
+      # gate combined.
+      - name: Integration tests
+        run: pnpm test:integration
+
+      - name: Build
+        run: pnpm build
