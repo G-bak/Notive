@@ -1,752 +1,678 @@
-# B. 서비스 기반 구축 세부 구현 계획서 v1.0
+# B. Service Foundation Detailed Plan v1.0
 
-# Notive 서비스 기반 구축
-
----
-
-# 1. 문서 목적
-
-본 문서는 Notive 전체 구현 계획 중 B단계인 서비스 기반 구축의 세부 계획을 정의한다.
-
-B단계의 목적은 사용자가 로그인하고, 조직에 소속되며, 역할과 권한에 따라 기본 화면과 기능에 접근할 수 있는 서비스의 기본 뼈대를 구축하는 것이다.
-
-이 단계에서 구축하는 인증, 조직, 사용자, 권한, 공통 레이아웃은 이후 문서 관리, AI 문서 생성, 업무 다이어리, 검색, 관리자 기능의 기반이 된다.
+# Notive Service Foundation
 
 ---
 
-# 2. B단계 목표
+# 1. Purpose
 
-B단계가 완료되면 다음이 가능해야 한다.
+This document defines the detailed plan for Phase B (Service Foundation) of Notive's overall implementation plan.
 
-* 사용자가 회원가입 또는 초대 수락을 통해 서비스에 진입할 수 있다.
-* 사용자가 로그인, 로그아웃, 세션 유지 흐름을 사용할 수 있다.
-* 사용자가 하나의 조직에 소속되어 서비스를 사용할 수 있다.
-* 조직 안에 팀/부서 구조를 만들 수 있다.
-* 사용자에게 Viewer, Editor, Manager, Admin 역할을 부여할 수 있다.
-* 역할에 따라 메뉴와 화면 접근이 제한된다.
-* 기본 앱 레이아웃과 내비게이션이 준비된다.
-* 이후 C단계 문서 관리 기능을 얹을 수 있는 최소 데이터 구조가 준비된다.
+Phase B builds the baseline so that a user can sign up, log in, belong to an organization, and access basic screens and features by role. The auth, organization, user, role, and shared layout built here become the foundation for documents (C), AI generation (D), work context (E), search (F), and admin (G).
+
+Phase A §15 locked all Phase-B-relevant decisions. This document encodes those decisions in concrete impl scope. Any deviation requires a new revision of Phase A §15 plus Codex verification.
 
 ---
 
-# 3. B단계 구현 범위
+# 2. Phase B Goals
 
-## 3.1 포함 범위
+When Phase B completes, the following must be true.
 
-* 프로젝트 초기 구조 구성
-* 기본 환경 설정
-* 사용자 인증
-* 회원가입
-* 로그인/로그아웃
-* 초대 수락
-* 조직 생성
-* 조직 선택
-* 팀/부서 생성
-* 사용자 조직 소속 관리
-* 역할 부여
-* 메뉴 접근 제어
-* 공통 앱 레이아웃
-* 기본 관리자 진입 화면
-* 기본 오류/빈 상태 화면
+* A user can enter the service via signup or invite acceptance.
+* A user can log in, log out, and have their session persisted.
+* A user belongs to exactly one organization (Phase A §15: 1 user = 1 organization for MVP).
+* The organization has a single-level Team structure (Phase A §15).
+* A user has at most one primary team in their organization (Phase A §15: 1 user = 1 primary team for MVP).
+* A user is assigned exactly one role: Viewer, Editor, Manager, or Admin.
+* Menu and screen access are restricted by role.
+* The base layout and navigation are in place.
+* Last-Admin protection is enforced.
+* The minimum data foundation needed by Phases C–G is in place.
+* Cleanup-worker / cron infrastructure is in place to support Phase A §15 retention rules (the workers themselves carry no Phase-B business logic yet; D and later wire them up).
 
 ---
 
-## 3.2 제외 범위
+# 3. Phase B Scope
 
-* 문서 작성 및 편집
-* AI 문서 생성
-* 문서 검색
-* 업무 다이어리
+## 3.1 In scope
+
+* Project initial structure
+* Base configuration (env, secrets, environments)
+* Email + password authentication (Phase A §15)
+* Mandatory email verification (Phase A §15)
+* Server-side session storage (Phase A §15)
+* Signup
+* Login / logout
+* Invite acceptance
+* Organization creation
+* Team creation under an organization
+* Membership management (1 organization, 1 primary team, 1 role)
+* Last-Admin protection
+* Role assignment and change (Admin-only)
+* Menu and route access control
+* Shared application layout
+* Base admin entry screen
+* Base error / empty / access-denied screens
+* AuditLog skeleton (table + writer interface; full write coverage lands in Phase G)
+* Short-term storage infrastructure (Redis or compatible) — wired but unused in B; consumed by D for AI preview bodies
+* Cleanup worker / cron infrastructure — wired but unused in B; activated in C/D for retention jobs
+
+---
+
+## 3.2 Out of scope
+
+* Document authoring and editing
+* AI document generation
+* Document search
+* Work diary
 * To-do
-* 고도화된 감사 로그
-* SSO/SAML
-* 결제 및 플랜 관리
-* 외부 서비스 연동
-* 복잡한 조직 계층 구조
+* Advanced audit logging UI
+* SSO / SAML / OAuth
+* 2FA
+* Billing and plan management
+* External integrations
+* Multi-level team / department hierarchy
+* Multi-organization membership for a single user
 
 ---
 
-# 4. 선행 조건
+# 4. Prerequisites
 
-B단계 착수 전 A단계에서 다음 항목이 확정되어야 한다.
+Phase A must have locked the following before B starts (Phase A §17 entry criteria).
 
-| 항목 | 필요 이유 |
+| Item | Why needed |
 | --- | --- |
-| 가입 방식 | 온보딩 화면과 인증 흐름 결정 |
-| 조직/팀 구조 | 데이터 모델과 관리자 화면 범위 결정 |
-| 역할 정의 | 권한 처리 기준 결정 |
-| P0 화면 목록 | 공통 레이아웃과 메뉴 구성 결정 |
-| 문서 기본 접근 정책 | 이후 C단계 권한 연결 준비 |
-| 기술 스택 방향 | 프로젝트 초기 구조 구성 |
+| Signup mode | Onboarding screens and auth flow |
+| Organization / team structure | Data model and admin screen scope |
+| Role definitions | Permission handling baseline |
+| P0 screen list | Layout and menu composition |
+| Document default access policy | C-phase permission wiring |
+| Technical direction | Project initial structure |
+| Phase B minimum entities | DB migration list for B |
+| Auth method | Login implementation |
+| AI log retention | B-phase infra (Redis, workers) for D-phase use |
+
+All prerequisites are satisfied by Phase A §15 as of the merge to `develop`.
 
 ---
 
-# 5. 주요 사용자 흐름
+# 5. Core User Flows
 
-## 5.1 신규 사용자 회원가입
+## 5.1 New user signup
 
-### 기본 흐름
+### Default flow
 
-1. 사용자가 회원가입 화면에 진입한다.
-2. 이름, 이메일, 비밀번호를 입력한다.
-3. 이메일 인증 또는 기본 검증을 완료한다.
-4. 조직 생성 또는 초대 수락 화면으로 이동한다.
-5. 조직에 소속된 뒤 홈 화면으로 이동한다.
+1. The user enters the signup screen.
+2. The user enters name, email, and password.
+3. The system sends a verification email.
+4. The user clicks the verification link (mandatory; cannot skip).
+5. The user lands on the "create organization or accept invite" screen.
+6. After joining an organization, the user lands on home.
 
-### 예외 흐름
+### Exception flow
 
-* 이미 가입된 이메일인 경우 로그인 안내
-* 비밀번호 규칙 미충족 시 입력 오류 표시
-* 이메일 인증 실패 시 재전송 안내
-* 조직 소속 없이 홈 접근 시 온보딩으로 이동
-
----
-
-## 5.2 초대 기반 가입
-
-### 기본 흐름
-
-1. 사용자가 초대 링크를 연다.
-2. 초대 대상 이메일과 토큰을 확인한다.
-3. 계정이 없으면 회원가입을 진행한다.
-4. 계정이 있으면 로그인한다.
-5. 초대된 조직과 역할을 확인한다.
-6. 초대를 수락하면 조직에 소속된다.
-7. 홈 화면으로 이동한다.
-
-### 예외 흐름
-
-* 초대 토큰 만료
-* 초대가 이미 사용됨
-* 초대 이메일과 로그인 계정이 다름
-* 초대가 취소됨
+* Already-registered email → guide to login.
+* Password fails policy (10+ chars, mixed classes, breach check) → field-level error.
+* Email verification fails or expires → re-send option.
+* Trying to reach home before joining an organization → redirect to onboarding.
 
 ---
 
-## 5.3 조직 생성
+## 5.2 Invite-based join
 
-### 기본 흐름
+### Default flow
 
-1. 사용자가 조직 생성 화면에 진입한다.
-2. 조직명을 입력한다.
-3. 기본 팀/부서를 생성한다.
-4. 생성자는 Admin 역할을 부여받는다.
-5. 홈 화면으로 이동한다.
+1. The user opens an invite link.
+2. The system reads the invited email and token.
+3. If no account, the user signs up first.
+4. If an account exists, the user logs in.
+5. The user sees the inviting organization and assigned role.
+6. On accept, a Membership row is created in `Active` state.
+7. The user lands on home.
 
-### 예외 흐름
+### Exception flow
 
-* 조직명 중복 또는 형식 오류
-* 조직 생성 권한 없음
-* 생성 중 오류 발생
-
----
-
-## 5.4 로그인 및 세션 유지
-
-### 기본 흐름
-
-1. 사용자가 이메일과 비밀번호로 로그인한다.
-2. 시스템이 계정 상태와 조직 소속을 확인한다.
-3. 사용 가능한 조직이 하나면 해당 조직 홈으로 이동한다.
-4. 여러 조직을 지원하는 경우 조직 선택 화면으로 이동한다.
-5. 세션이 유지되는 동안 새로고침 후에도 로그인 상태가 유지된다.
-
-### 예외 흐름
-
-* 비밀번호 불일치
-* 비활성화된 사용자
-* 조직에서 제거된 사용자
-* 세션 만료
+* Token expired
+* Token already used
+* The invited email differs from the logged-in account → reject and instruct
+* Invite revoked
 
 ---
 
-## 5.5 역할 기반 접근
+## 5.3 Organization creation
 
-### 기본 흐름
+### Default flow
 
-1. 사용자가 로그인한다.
-2. 시스템이 사용자의 조직 소속과 역할을 확인한다.
-3. 역할에 맞는 메뉴를 표시한다.
-4. 권한이 없는 화면 접근 시 접근 제한 화면을 표시한다.
+1. The user enters the org creation screen.
+2. The user enters an organization name.
+3. The system creates a default Team.
+4. The creator gets the `Admin` role automatically (Phase A §15).
+5. The user lands on home.
 
-### 예외 흐름
+### Exception flow
 
-* 역할이 없는 사용자
-* 조직 소속이 없는 사용자
-* 관리자 메뉴 직접 URL 접근
-* 비활성화된 팀 소속 사용자
+* Name format error or slug collision
+* Generic creation failure → preserve user input, allow retry
 
 ---
 
-# 6. 화면 구성
+## 5.4 Login and session
 
-## 6.1 B단계 P0 화면
+### Default flow
 
-| 화면 | 목적 | 접근 대상 |
+1. The user enters email and password.
+2. Auth Module verifies the password hash.
+3. The system checks: account is `Active`, email is verified, organization membership is `Active`.
+4. The system creates a server-side session and sets a session cookie.
+5. The user lands on home.
+
+### Exception flow
+
+* Wrong password (constant-time compare; generic error message)
+* Disabled / unverified account
+* Removed from organization (no active membership)
+* Session expired / revoked
+
+---
+
+## 5.5 Role-based access
+
+### Default flow
+
+1. The user is logged in.
+2. The system loads the user's membership and role.
+3. Menus that the role cannot access are hidden or disabled.
+4. Direct URL access to a protected route is rejected by the server (the menu being hidden is not enough).
+
+### Exception flow
+
+* User without a role or membership → access-denied screen, route to home or contact admin
+* Disabled team membership → treat as no team for permission purposes; documents owned by team transfer per Phase A §9.4
+
+---
+
+# 6. Screens
+
+## 6.1 Phase B P0 screens
+
+| Screen | Purpose | Audience |
 | --- | --- | --- |
-| 로그인 | 기존 사용자 진입 | 비로그인 사용자 |
-| 회원가입 | 신규 사용자 계정 생성 | 비로그인 사용자 |
-| 초대 수락 | 조직 초대 처리 | 초대 대상 사용자 |
-| 조직 생성 | 신규 조직 생성 | 가입 사용자 |
-| 조직 선택 | 소속 조직 선택 | 다중 조직 사용자 |
-| 홈 대시보드 기본형 | 로그인 후 기본 진입 | 로그인 사용자 |
-| 접근 제한 | 권한 없는 접근 안내 | 로그인 사용자 |
-| 계정 설정 기본형 | 내 정보 확인 | 로그인 사용자 |
-| 관리자 기본 홈 | 관리자 기능 진입 | Manager, Admin |
+| Login | Existing user entry | Logged-out users |
+| Signup | New account creation | Logged-out users |
+| Email verification | Mandatory verification step | Pending users |
+| Invite acceptance | Process org invite | Invited users |
+| Organization creation | Create a new org | Verified users without org |
+| Home dashboard (skeleton) | Default landing | Logged-in users |
+| Access denied | Permission-denied notice | Logged-in users |
+| Account settings (basic) | View own info | Logged-in users |
+| Admin home (skeleton) | Entry to admin features | Admin only (Manager has no admin home in MVP — see §9) |
 
 ---
 
-## 6.2 B단계 P1 화면
+## 6.2 Phase B P1 screens
 
-| 화면 | 목적 | 접근 대상 |
+| Screen | Purpose | Audience |
 | --- | --- | --- |
-| 비밀번호 재설정 | 계정 복구 | 비로그인 사용자 |
-| 팀/부서 관리 | 조직 구조 관리 | Admin |
-| 사용자 초대 | 신규 사용자 초대 | Admin, 제한적 Manager |
-| 사용자 목록 | 조직 사용자 확인 | Admin, 제한적 Manager |
-| 역할 변경 | 사용자 역할 조정 | Admin |
-| 조직 설정 기본형 | 조직명 등 기본 설정 | Admin |
+| Password reset | Account recovery | Logged-out users |
+| Team management | Manage teams | Admin |
+| User invite | Invite new users | Admin (Phase A §15: Manager cannot invite) |
+| User list | View org users | Admin |
+| Role change | Adjust user roles | Admin |
+| Organization settings (basic) | Org name etc. | Admin |
 
 ---
 
-## 6.3 공통 상태 화면
+## 6.3 Common state screens
 
-* 로딩 상태
-* 빈 목록 상태
-* 오류 상태
-* 접근 제한 상태
-* 세션 만료 상태
-* 초대 만료 상태
-* 저장 성공/실패 알림
+* Loading
+* Empty list
+* Error
+* Access denied
+* Session expired
+* Invite expired
+* Save success / failure toast
 
 ---
 
-# 7. 정보 구조 및 내비게이션
+# 7. Information Architecture
 
-## 7.1 기본 앱 메뉴
+## 7.1 Base navigation
 
-B단계에서는 이후 기능을 고려해 메뉴 구조를 먼저 잡되, 구현되지 않은 기능은 비활성 또는 준비 중 상태로 둘 수 있다.
+Phase B lays out the menu structure for later phases. Unimplemented features are shown as "preparing" placeholders.
 
-| 메뉴 | B단계 상태 | 접근 기준 |
+| Menu | Phase B state | Access |
 | --- | --- | --- |
-| 홈 | 구현 | 로그인 사용자 |
-| AI 문서 생성 | 준비 중 또는 비활성 | Editor 이상 |
-| 문서 | 준비 중 또는 비활성 | 로그인 사용자 |
-| 업무 다이어리 | 준비 중 또는 비활성 | Editor 이상 |
-| To-do | 준비 중 또는 비활성 | Editor 이상 |
-| 검색 | 준비 중 또는 비활성 | 로그인 사용자 |
-| 관리자 | 기본 구현 | Manager 이상 |
-| 설정 | 기본 구현 | 로그인 사용자 |
+| Home | Implemented | Logged-in users |
+| AI document generation | Placeholder | Editor and above |
+| Documents | Placeholder | Logged-in users |
+| Work diary | Placeholder | Editor and above |
+| To-do | Placeholder | Editor and above |
+| Search | Placeholder | Logged-in users |
+| Admin | Basic implementation | Admin only |
+| Settings | Basic implementation | Logged-in users |
+
+Note: Manager does not see the Admin menu in MVP. Phase A §15 Codex decision: Manager cannot invite users or manage templates. Manager has no Phase-B admin entry. Manager's elevated scope (team-document moderation) appears in C/G phases, not B.
 
 ---
 
-## 7.2 홈 대시보드 기본 구성
+## 7.2 Home dashboard composition
 
-B단계 홈은 실제 문서 데이터가 없더라도 이후 기능 진입점을 제공한다.
-
-### 구성 요소
-
-* 환영 메시지
-* 사용자 소속 조직과 팀 표시
-* 빠른 작업 영역
-* 최근 문서 준비 영역
-* 업무 다이어리 준비 영역
-* 관리자용 조직 설정 바로가기
+* Welcome message
+* User's organization and team display
+* Quick action area (placeholder)
+* Recent documents area (placeholder)
+* Work diary area (placeholder)
+* Admin quick link (Admin only)
 
 ---
 
-## 7.3 관리자 기본 홈
+## 7.3 Admin home composition
 
-관리자 기본 홈은 G단계 관리자 기능의 출발점이다.
-
-### 구성 요소
-
-* 조직 사용자 수
-* 팀/부서 수
-* 초대 대기 사용자 수
-* 사용자 관리 진입
-* 팀/부서 관리 진입
-* 템플릿 관리 준비 영역
-* 활동 로그 준비 영역
+* Org user count
+* Team count
+* Pending invite count
+* User management entry
+* Team management entry
+* Template management entry (placeholder; Admin only — Phase A §15 Codex decision)
+* Activity log entry (placeholder; Phase G implementation)
 
 ---
 
-# 8. 데이터 설계 범위
+# 8. Data Scope (B-phase only)
 
-## 8.1 B단계 핵심 데이터
+## 8.1 Phase B core entities
 
-| 데이터 | 설명 | B단계 필요 여부 |
+These are the only entities Phase B creates. Phase A §15 minimum entity set is encoded here.
+
+| Entity | DB table | B necessity |
 | --- | --- | --- |
-| User | 사용자 계정 | 필수 |
-| Organization | 조직 | 필수 |
-| Team | 팀/부서 | 필수 |
-| Membership | 사용자와 조직의 연결 | 필수 |
-| Role | 역할 | 필수 |
-| Invitation | 조직 초대 | 필수 |
-| Session | 로그인 세션 | 필수 |
-| ActivityLog | 주요 활동 기록 | 기본 |
-| OrganizationSetting | 조직 기본 설정 | 기본 |
+| User | `users` | Required |
+| Organization | `organizations` | Required |
+| Team | `teams` | Required |
+| Membership | `memberships` | Required |
+| Role | `roles` | Required (system-default rows seeded) |
+| Invitation | `invitations` | Required |
+| Session | `sessions` | Required |
+| ActivityLog | `activity_logs` | Skeleton (table created; writer interface exposed; broad write coverage lands in Phase G) |
+| OrganizationSetting | `organization_settings` | Required (basic columns only) |
+
+Document, template, AI, work-context, and search tables are **not** created in Phase B.
 
 ---
 
-## 8.2 User
+## 8.2 Field-level locks tied to Phase A §15
 
-### 주요 필드
+* `users.email_verified_at` is required to transition `users.status` from `Pending` to `Active`. Until verified, the user cannot create or join an organization.
+* `memberships.team_id` holds **exactly one** team per membership in MVP (or null for not-yet-assigned). Multi-team membership is deferred (Phase A §16).
+* `memberships.role` is one of `Viewer`, `Editor`, `Manager`, `Admin` exactly.
+* `organizations` has at most one Admin removal blocker: the system rejects any operation that would leave zero `Active` Admin memberships in an organization.
+* `invitations.role` is the role to assign on accept. Phase A §15 / Codex: only Admin can create an invitation.
 
-* ID
-* 이름
-* 이메일
-* 비밀번호 인증 정보
-* 프로필 이미지
-* 계정 상태
-* 이메일 인증 여부
-* 마지막 로그인 시각
-* 생성일
-* 수정일
-
-### 상태
-
-* Active
-* Pending
-* Disabled
-* Deleted
+See `docs/database/notive-database-design-v1.0.md` §6 for full schema.
 
 ---
 
-## 8.3 Organization
+# 9. Permissions in Phase B
 
-### 주요 필드
+## 9.1 Role baseline
 
-* ID
-* 조직명
-* 조직 식별자
-* 상태
-* 생성자
-* 생성일
-* 수정일
-
-### 상태
-
-* Active
-* Suspended
-* Deleted
-
----
-
-## 8.4 Team
-
-### 주요 필드
-
-* ID
-* 조직 ID
-* 팀명
-* 설명
-* 상위 팀 ID
-* 팀 관리자 ID
-* 상태
-* 생성일
-* 수정일
-
-### MVP 기준
-
-초기에는 1단계 팀/부서를 기본으로 한다. 상위 팀 구조는 데이터 확장 가능성만 열어두고 화면에서는 제한적으로 제공한다.
-
----
-
-## 8.5 Membership
-
-### 주요 필드
-
-* ID
-* 사용자 ID
-* 조직 ID
-* 팀 ID
-* 역할
-* 상태
-* 가입 방식
-* 가입일
-
-### 상태
-
-* Active
-* Invited
-* Disabled
-* Removed
-
----
-
-## 8.6 Invitation
-
-### 주요 필드
-
-* ID
-* 조직 ID
-* 초대 이메일
-* 초대 역할
-* 초대 팀
-* 초대자
-* 토큰
-* 만료 시각
-* 상태
-* 생성일
-
-### 상태
-
-* Pending
-* Accepted
-* Expired
-* Revoked
-
----
-
-## 8.7 ActivityLog
-
-### B단계 기록 대상
-
-* 로그인 성공
-* 로그인 실패
-* 조직 생성
-* 사용자 초대
-* 초대 수락
-* 역할 변경
-* 팀 생성
-* 사용자 비활성화
-
-### 기록 항목
-
-* 수행 사용자
-* 대상 사용자 또는 대상 리소스
-* 활동 유형
-* 발생 시각
-* 결과
-* IP 또는 환경 정보
-
----
-
-# 9. 권한 설계
-
-## 9.1 역할 기준
-
-| 역할 | B단계 기준 |
+| Role | Phase B scope |
 | --- | --- |
-| Viewer | 홈, 문서 메뉴 준비 영역, 검색 준비 영역 접근 |
-| Editor | Viewer 권한 + AI 생성, 업무 다이어리, To-do 준비 영역 접근 |
-| Manager | Editor 권한 + 관리자 기본 홈, 제한적 사용자 목록 접근 |
-| Admin | 전체 조직 설정, 사용자 초대, 역할 변경, 팀 관리 접근 |
+| Viewer | Home + placeholder menus for Documents and Search |
+| Editor | Viewer + placeholder menus for AI generation, work diary, to-do |
+| Manager | Editor + (no admin entry in MVP); Manager's elevated scope is team-document moderation in C, not user / template management in B |
+| Admin | Full org management: invite, role change, team management, organization settings, last-Admin protection bypass attempts are blocked |
 
----
+## 9.2 Admin-only operations in B (Phase A §15 + Codex decisions)
 
-## 9.2 메뉴 권한
+* Create user invitation
+* Cancel / revoke invitation
+* Change user role
+* Disable / re-enable a user
+* Create / rename / archive a team
+* Assign or move a user between teams (within org)
+* Edit organization settings
+* (Templates: Admin-only; not implemented in B but Phase A §15 locks Admin-only ownership)
 
-| 메뉴 | Viewer | Editor | Manager | Admin |
+## 9.3 Last-Admin protection
+
+The system rejects any of the following when only one `Active` Admin remains in an organization:
+
+* Demoting that user
+* Disabling that user
+* Removing that user's membership
+* Transferring that user out of the organization
+
+Rejection is returned as `FORBIDDEN` with `reason_code=last_admin_protection` and recorded in `activity_logs`.
+
+## 9.4 Menu permissions
+
+| Menu | Viewer | Editor | Manager | Admin |
 | --- | --- | --- | --- | --- |
-| 홈 | 가능 | 가능 | 가능 | 가능 |
-| AI 문서 생성 | 불가 | 가능 | 가능 | 가능 |
-| 문서 | 가능 | 가능 | 가능 | 가능 |
-| 업무 다이어리 | 불가 | 가능 | 가능 | 가능 |
-| To-do | 불가 | 가능 | 가능 | 가능 |
-| 검색 | 가능 | 가능 | 가능 | 가능 |
-| 관리자 | 불가 | 불가 | 제한 가능 | 가능 |
-| 설정 | 가능 | 가능 | 가능 | 가능 |
+| Home | Yes | Yes | Yes | Yes |
+| AI document generation | No | Yes (placeholder) | Yes (placeholder) | Yes (placeholder) |
+| Documents | Yes (placeholder) | Yes (placeholder) | Yes (placeholder) | Yes (placeholder) |
+| Work diary | No | Yes (placeholder) | Yes (placeholder) | Yes (placeholder) |
+| To-do | No | Yes (placeholder) | Yes (placeholder) | Yes (placeholder) |
+| Search | Yes (placeholder) | Yes (placeholder) | Yes (placeholder) | Yes (placeholder) |
+| Admin | No | No | No (Phase A §15 Codex decision) | Yes |
+| Settings | Yes | Yes | Yes | Yes |
+
+## 9.5 Access control principles
+
+* Apply both screen-level and data-level access control. Hiding the menu is not sufficient.
+* Direct URL access to a protected route is blocked at the server.
+* Cross-organization data must not be reachable via any route. The current organization context is mandatory for every protected query.
+* Disabled users cannot log in.
+* Expired or revoked invitations cannot be redeemed.
+* Role changes and admin-scoped operations are recorded in `activity_logs`.
+
+## 9.6 Error code convention (Phase A §15 / Codex decision)
+
+* `UNAUTHORIZED` (401): no session.
+* `FORBIDDEN` (403): authenticated, but the role lacks the requested feature permission. Use this when the user must understand "you are not allowed."
+* `NOT_FOUND` (404): default for resource-permission denials. Use this whenever revealing existence of the resource itself would leak information (other-org resources, private docs, search results the user cannot see, etc.).
+
+The default is `NOT_FOUND`. `FORBIDDEN` is reserved for the authenticated-but-feature-not-allowed case. Permission policy §15 will be updated to match.
+
+Last-Admin protection is fixed to `FORBIDDEN` with `reason_code=last_admin_protection`.
 
 ---
 
-## 9.3 관리자 권한
+# 10. Authentication Policy
 
-| 기능 | Manager | Admin |
+Phase A §15 locks. Phase B implements them.
+
+## 10.1 Auth method
+
+* Email + password.
+* Mandatory email verification before account becomes `Active`.
+* Server-side session stored in Postgres (`sessions` table). A session cookie holds the session ID; tokens are hashed at rest.
+* Constant-time password comparison; bcrypt or argon2id hash (algorithm choice locked at impl start, not before).
+
+## 10.2 Password policy
+
+* Minimum 10 characters.
+* Must contain mixed character classes (configurable; baseline: lowercase + uppercase OR lowercase + digit).
+* Breach check at signup and password change (e.g., k-anonymous Have I Been Pwned API or local Pwned Passwords corpus). If checked online, no plaintext leaves the server.
+* Password reset token expires within 1 hour.
+
+## 10.3 Session policy
+
+* Default lifetime: 14 days idle, 30 days absolute.
+* Logout clears the session row and the cookie.
+* Multi-device login allowed.
+* Sessions belonging to a `Disabled` user are forced to expire (logged-out on next request).
+
+## 10.4 Future auth extensions
+
+Phase B leaves the door open but does not implement:
+
+* SSO (Google / Microsoft / SAML / OIDC)
+* 2FA / TOTP
+* IP allowlists
+
+---
+
+# 11. Organization and Invitation Policy
+
+## 11.1 Organization creation
+
+* A verified user can create one organization.
+* The creator becomes the first Admin (Phase A §15).
+* The system creates a default Team named `Default` (or org name) and assigns the creator to it.
+* Slug is auto-generated from the name; collisions are resolved by suffixing.
+
+## 11.2 Invitation policy
+
+* Admin only. Codex decision: Manager cannot invite in MVP.
+* Invitation specifies email, role, and optional team.
+* Token has a 7-day expiry by default.
+* Re-sending an invite reuses the email; previous token is revoked.
+* Cancelling an invite sets `status` to `Revoked` and prevents redemption.
+* Already-registered users receive an in-product invite that they accept after login.
+* On accept, a Membership row is created with `status=Active`, the assigned role, and the assigned team.
+
+## 11.3 Membership invariants
+
+* `(user_id, organization_id)` is unique.
+* MVP enforces "one active membership per user across organizations." Attempting to accept an invite while having an active membership elsewhere is rejected (Phase A §15: 1 user = 1 organization).
+* Role change is Admin-only and audit-logged.
+* Last-Admin protection (see §9.3).
+
+---
+
+# 12. Shared UI and Layout
+
+## 12.1 Layout zones
+
+* Side navigation
+* Top bar
+* Organization / team display
+* User menu
+* Main content area
+* Toast / notification area
+
+## 12.2 Side navigation
+
+Per §9.4. Items the user's role cannot reach are hidden. Placeholder items show a "preparing" state to avoid user confusion.
+
+## 12.3 Top bar
+
+* Current page title
+* Organization name
+* Quick-create button (placeholder until C-phase)
+* User profile menu
+* Logout
+
+## 12.4 Shared components
+
+* Button, input, select, table, tabs, modal, toast, badge
+* Empty / error / access-denied states
+* Loading indicator
+
+---
+
+# 13. Infra Decisions (Codex-locked)
+
+## 13.1 Short-term storage
+
+Codex decision: **Redis-compatible short-term storage** is the Phase B standard for the store consumed by Phase D AI preview / editing. Phase B provisions a Redis-compatible service as part of the deployment but does not yet write business data into it. The concrete provider (for example managed cloud Redis, Upstash, or self-hosted Redis) is selected during Phase B infrastructure implementation and requires Codex verification.
+
+* Connection wiring, healthcheck, and TTL semantics (24-hour idle for AI preview bodies — Phase A §15) are part of B-phase infra readiness.
+* Encryption at rest (managed Redis with cluster-level encryption) and TLS in transit are required from B onward.
+
+## 13.2 Background workers
+
+Codex decision: cleanup runs on a **worker / cron** framework provisioned in B. Phase B does not run business cleanup yet; B only sets up the framework so C and D can register jobs without further infra work.
+
+Jobs to be registered (later phases):
+
+* AI preview body cleanup — every 5 minutes; deletes Redis-bound preview bodies past 24-hour idle (Phase D).
+* AI request payload purge — daily; hard-deletes `ai_request_payloads` rows where `retain_until < now` (Phase D).
+* AI metadata retention — daily; deletes `ai_requests` / `ai_results` / `ai_usage_logs` / `ai_references` rows older than 90 days (Phase D).
+* Document soft-delete purge — daily; hard-deletes `documents` rows where `deleted_at + 30 days < now` (Phase C).
+
+Phase B builds the worker entrypoint, cron schedule registration, idempotency primitives, and a dry-run mode. No data-mutating job runs on production until C / D is live.
+
+## 13.3 Auth infrastructure
+
+* Postgres-backed `sessions` table (no Redis-stored sessions in MVP — keeps the audit trail in one place).
+* Mail provider for verification and invitation links (provider chosen at impl start; secrets via env).
+
+---
+
+# 14. Phase B DB Migration Checklist
+
+Migrations to ship in B (in order):
+
+1. `users` (schema per DB design §5.1)
+2. `sessions` (DB design §5.2)
+3. `invitations` (DB design §5.3)
+4. `organizations` (DB design §6.1)
+5. `teams` (DB design §6.2)
+6. `roles` (DB design §6.4) + system-role seed (Viewer / Editor / Manager / Admin)
+7. `memberships` (DB design §6.3) + last-Admin protection enforced at both DB and application layers
+8. `activity_logs` skeleton (DB design §12.1) — table only, no writers wired beyond a thin interface
+9. `organization_settings` basic columns (DB design §12.2; only `default_role`, `default_team_id`, `invite_policy` are populated in B)
+
+Migrations explicitly **not** in B: documents, document_versions, document_shares, templates, all AI tables, diary_entries, todos, projects, search_indexes, search_query_logs.
+
+Each migration must include:
+
+* Forward + backward script.
+* `organization_id` indexes per DB design §14.1.
+* Soft-delete fields per DB design §15.1 (where applicable).
+* No raw default values that would fail after deploy (e.g., add NOT NULL columns with backfill in two steps if data exists).
+
+---
+
+# 15. Phase B API Checklist
+
+Endpoints to ship in B (one section per group; full request / response shapes live in `docs/api/notive-api-spec-v1.0.md`).
+
+## 15.1 Auth
+
+* `POST /auth/signup`
+* `POST /auth/verify-email`
+* `POST /auth/resend-verification`
+* `POST /auth/login`
+* `POST /auth/logout`
+* `POST /auth/password-reset/request`
+* `POST /auth/password-reset/confirm`
+
+## 15.2 Session
+
+* `GET /me` (current user + active membership)
+
+## 15.3 Organization
+
+* `POST /organizations` (verified user; becomes first Admin)
+* `GET /organizations/{id}` (Admin / member of that org)
+* `PATCH /organizations/{id}` (Admin)
+
+## 15.4 Team
+
+* `GET /organizations/{id}/teams`
+* `POST /organizations/{id}/teams` (Admin)
+* `PATCH /organizations/{id}/teams/{teamId}` (Admin)
+* `POST /organizations/{id}/teams/{teamId}/archive` (Admin)
+
+## 15.5 Membership
+
+* `GET /organizations/{id}/members`
+* `PATCH /organizations/{id}/members/{userId}` (Admin only; role change, team change; last-Admin protection enforced)
+* `POST /organizations/{id}/members/{userId}/disable` (Admin only; last-Admin protection enforced)
+* `POST /organizations/{id}/members/{userId}/enable` (Admin only)
+
+## 15.6 Invitation
+
+* `POST /organizations/{id}/invitations` (Admin only; Codex decision)
+* `GET /organizations/{id}/invitations`
+* `POST /organizations/{id}/invitations/{invitationId}/revoke` (Admin only)
+* `POST /invitations/{token}/accept` (target user; rejects if invited email ≠ logged-in account; rejects if user already has an active membership elsewhere)
+
+## 15.7 ActivityLog (skeleton)
+
+* `GET /organizations/{id}/activity-logs` (Admin; B-phase returns auth + admin events only — broader coverage in Phase G)
+
+All endpoints follow the §9.6 error convention. Responses revealing existence of unauthorized resources return `NOT_FOUND`.
+
+---
+
+# 16. Phase B Permission Test Checklist
+
+Every item below must pass before B is considered done.
+
+## 16.1 Auth
+
+* Cannot log in with unverified email.
+* Cannot log in to a `Disabled` account.
+* Cannot log in with a password that fails the policy check at signup.
+* Session expires after the configured idle / absolute window.
+* Logout invalidates the session both server-side and in the client cookie.
+
+## 16.2 Cross-org isolation
+
+* A request signed by a user in org A cannot read or modify any resource in org B (returns `NOT_FOUND`).
+* Trying to invite into org B from a user with active membership only in org A is rejected.
+* Direct ID-guess on org B's team / user / invitation IDs returns `NOT_FOUND`.
+
+## 16.3 Role-based access
+
+* Viewer cannot reach the AI generation menu (FORBIDDEN).
+* Editor cannot reach the Admin menu (FORBIDDEN).
+* Manager cannot reach any admin endpoint in B (FORBIDDEN — Codex decision).
+* Admin can reach all org-management endpoints.
+
+## 16.4 Last-Admin protection
+
+* Demoting the only Admin returns an error and is audit-logged.
+* Disabling the only Admin returns an error and is audit-logged.
+* Removing the only Admin's membership returns an error.
+* Transferring the only Admin out of the organization returns an error.
+* All Last-Admin protection failures return `FORBIDDEN` with `reason_code=last_admin_protection`.
+
+## 16.5 Membership uniqueness
+
+* Accepting an invite while already an active member of another organization returns an error (Phase A §15: 1 user = 1 org).
+* `(user_id, organization_id)` uniqueness is enforced at the DB level.
+* A partial unique constraint enforces one `Active` membership per user across all organizations.
+
+## 16.6 Audit log writes (skeleton)
+
+* Login success / failure events are written.
+* Invite create / accept / revoke events are written.
+* Role change events are written.
+* User disable / enable events are written.
+* Each entry contains actor, target, action, result, IP, user agent, timestamp.
+
+## 16.7 Infra readiness
+
+* Redis (or chosen short-term store) responds to a healthcheck from the running app.
+* The cleanup worker can run a dry-run job and reports success.
+* Mail provider can deliver a verification email in staging.
+
+---
+
+# 17. Done Criteria
+
+Phase B is done when **all** of the following are true.
+
+* §16 checklist passes end-to-end in Staging.
+* Phase A §17 entry criteria remain satisfied (no documents drifted out of alignment).
+* Codex review confirms no documents conflict with the §15 locks.
+* Production deployment succeeds with the §14 migrations.
+* Operations doc §3 (cleanup workers section) reflects the registered B-phase jobs (even if empty in B).
+
+---
+
+# 18. Risks and Mitigations
+
+| Risk | Description | Mitigation |
 | --- | --- | --- |
-| 사용자 목록 조회 | 팀 범위 | 조직 전체 |
-| 사용자 초대 | 선택 사항 | 가능 |
-| 역할 변경 | 불가 | 가능 |
-| 팀 생성 | 불가 또는 제한 | 가능 |
-| 팀 사용자 배정 | 팀 범위 | 조직 전체 |
-| 조직 설정 수정 | 불가 | 가능 |
-| 활동 로그 조회 | 팀 범위 또는 불가 | 가능 |
+| Last-Admin enforcement gap | A code path that mutates memberships could bypass the trigger / invariant | Apply at both DB and application layers; cover all four operations (demote / disable / remove / transfer) in §16.4 tests |
+| Session leak via Disabled user | Disabled users with an unexpired session could keep using the app | Force-expire sessions on disable; the next request re-checks `users.status` |
+| Cross-org leak via invite | Accepting an invite while already active elsewhere could create a second active membership | Enforce single-active-membership at API and DB; reject early in `POST /invitations/{token}/accept` |
+| Email verification skipped | A bug or edge case lets an unverified user create an organization | Make org creation depend on `users.status = Active`; deny at the API and at the DB constraint level |
+| `NOT_FOUND` vs `FORBIDDEN` drift | Mixed conventions across endpoints leak existence | Centralize resource-permission denials in the Permission Module; default `NOT_FOUND`; lint via test cases |
+| Redis introduced too early | Operational complexity with no business use yet | Deploy Redis but keep B-phase free of business writes; only healthcheck + readiness in B |
+| Cleanup worker pre-arming risk | A misconfigured cron could run a destructive job in B before C / D land | Default all jobs to dry-run; require an explicit env flag to enable destructive operations |
+| Audit log skeleton drifts from Phase G | Phase B writes a subset; Phase G might want different schema | Lock `activity_logs` schema now per DB design §12.1; Phase G adds writers, not columns |
+| Multi-team migration cost | Customer pulls multi-team forward | Schema change is bounded (add `membership_teams` join table) but permission rewrites are wide; require explicit Phase A §15 update first |
 
 ---
 
-## 9.4 접근 제어 원칙
+# 19. Handoff to C
 
-* 화면 접근 제어와 데이터 접근 제어를 모두 적용한다.
-* 메뉴가 숨겨져 있어도 직접 URL 접근은 차단한다.
-* 조직 ID가 다른 데이터는 조회할 수 없어야 한다.
-* 비활성화된 사용자는 로그인할 수 없어야 한다.
-* 초대가 만료되거나 취소된 사용자는 조직에 가입할 수 없어야 한다.
-* Admin 권한 부여와 변경은 활동 로그에 기록한다.
+Phase C (Document Management) starts when Phase B is done.
 
----
+Phase C will assume the following are in place:
 
-# 10. 인증 정책
+* Authenticated request context with `user_id`, `organization_id`, `team_id`, `role`.
+* Permission Module with the §9.6 error convention and last-Admin protection in place.
+* `activity_logs` writer interface (Phase C will add document-related events).
+* Cleanup worker framework (Phase C registers the soft-delete purge job).
+* Redis short-term store (Phase C does not consume yet; D does).
 
-## 10.1 기본 인증 방식
-
-MVP에서는 이메일과 비밀번호 기반 인증을 기본으로 한다.
-
-### 기본 요구사항
-
-* 이메일 형식 검증
-* 비밀번호 최소 보안 규칙
-* 로그인 실패 처리
-* 로그아웃
-* 세션 만료 처리
-* 비활성화 계정 로그인 차단
-
----
-
-## 10.2 비밀번호 정책
-
-초기 정책은 과도하게 복잡하지 않되 기본 보안 수준을 만족해야 한다.
-
-### 권장 기준
-
-* 최소 8자 이상
-* 영문과 숫자 조합 권장
-* 너무 흔한 비밀번호 제한
-* 비밀번호 재설정 기능 제공
-
----
-
-## 10.3 세션 정책
-
-### 결정 항목
-
-* 로그인 유지 기간
-* 브라우저 종료 후 세션 유지 여부
-* 장시간 미사용 시 만료 여부
-* 여러 기기 로그인 허용 여부
-
----
-
-## 10.4 후속 인증 확장
-
-B단계에서는 다음 기능을 설계 여지만 남기고 구현 범위에서는 제외한다.
-
-* Google/Microsoft 소셜 로그인
-* SSO
-* SAML
-* 2단계 인증
-* IP 제한
-
----
-
-# 11. 조직 및 초대 정책
-
-## 11.1 조직 생성 정책
-
-### 기본안
-
-* 일반 사용자는 가입 후 새 조직을 생성할 수 있다.
-* 조직 생성자는 자동으로 Admin이 된다.
-* 조직 생성 시 기본 팀을 함께 생성한다.
-
-### 검토 항목
-
-* 베타 기간에는 조직 생성을 제한할지 여부
-* 조직명 중복 허용 여부
-* 조직 식별자 자동 생성 방식
-
----
-
-## 11.2 초대 정책
-
-### 기본안
-
-* Admin은 이메일로 사용자를 초대할 수 있다.
-* 초대 시 역할과 팀을 지정할 수 있다.
-* 초대 링크에는 만료 시간이 있다.
-* 초대 수락 후 Membership이 Active 상태가 된다.
-
-### 검토 항목
-
-* Manager의 초대 권한 허용 여부
-* 초대 재전송 기능
-* 초대 취소 기능
-* 이미 가입된 사용자 초대 처리 방식
-
----
-
-# 12. 공통 UI 및 레이아웃
-
-## 12.1 레이아웃 구성
-
-기본 앱 레이아웃은 다음 영역으로 구성한다.
-
-* 사이드 내비게이션
-* 상단 바
-* 조직/팀 표시 영역
-* 사용자 메뉴
-* 메인 콘텐츠 영역
-* 알림/토스트 영역
-
----
-
-## 12.2 사이드 내비게이션
-
-### 표시 요소
-
-* 홈
-* AI 문서 생성
-* 문서
-* 업무 다이어리
-* To-do
-* 검색
-* 관리자
-* 설정
-
-역할에 따라 접근 불가 메뉴는 숨기거나 비활성화한다. MVP에서는 사용자가 혼란을 느끼지 않도록 미구현 기능은 준비 중 상태를 명확히 표시한다.
-
----
-
-## 12.3 상단 바
-
-### 표시 요소
-
-* 현재 페이지 제목
-* 조직명
-* 빠른 생성 버튼
-* 사용자 프로필 메뉴
-* 로그아웃
-
----
-
-## 12.4 공통 컴포넌트
-
-B단계에서 준비할 공통 컴포넌트는 다음과 같다.
-
-* 버튼
-* 입력 필드
-* 선택 박스
-* 테이블
-* 탭
-* 모달
-* 토스트
-* 배지
-* 빈 상태
-* 오류 상태
-* 접근 제한 안내
-* 로딩 표시
-
----
-
-# 13. 오류 및 예외 처리
-
-## 13.1 인증 오류
-
-* 이메일 또는 비밀번호 오류
-* 세션 만료
-* 비활성화 계정
-* 인증되지 않은 접근
-
----
-
-## 13.2 권한 오류
-
-* 접근 권한 없는 메뉴
-* 관리자 기능 직접 접근
-* 다른 조직 데이터 접근
-* 역할 변경 권한 없음
-
----
-
-## 13.3 초대 오류
-
-* 만료된 초대
-* 취소된 초대
-* 이미 사용된 초대
-* 이메일 불일치
-
----
-
-## 13.4 공통 오류 UX 원칙
-
-* 사용자가 다음 행동을 알 수 있어야 한다.
-* 보안상 불필요한 내부 정보를 노출하지 않는다.
-* 복구 가능한 오류는 재시도 또는 돌아가기 경로를 제공한다.
-* 권한 오류는 관리자 문의 또는 홈 이동 경로를 제공한다.
-
----
-
-# 14. 테스트 계획
-
-## 14.1 핵심 테스트 시나리오
-
-| 시나리오 | 검증 내용 |
-| --- | --- |
-| 회원가입 | 계정 생성 후 온보딩 이동 |
-| 로그인 | 정상 로그인 및 세션 유지 |
-| 로그아웃 | 세션 종료 및 로그인 화면 이동 |
-| 조직 생성 | 조직과 기본 Admin 생성 |
-| 초대 수락 | 초대받은 사용자의 조직 가입 |
-| 역할별 메뉴 표시 | Viewer, Editor, Manager, Admin 메뉴 차이 |
-| 관리자 접근 제한 | 비관리자 직접 URL 접근 차단 |
-| 사용자 비활성화 | 비활성화 사용자의 로그인 차단 |
-| 팀 생성 | Admin의 팀 생성 및 목록 반영 |
-| 역할 변경 | Admin의 역할 변경과 권한 반영 |
-
----
-
-## 14.2 권한 테스트
-
-* Viewer가 AI 문서 생성 메뉴에 접근할 수 없는지 확인
-* Editor가 관리자 화면에 접근할 수 없는지 확인
-* Manager가 허용된 관리자 기능만 사용할 수 있는지 확인
-* Admin이 조직 관리 기능에 접근할 수 있는지 확인
-* 다른 조직 ID로 데이터 조회가 차단되는지 확인
-
----
-
-## 14.3 예외 테스트
-
-* 만료된 초대 링크 접근
-* 취소된 초대 링크 접근
-* 존재하지 않는 조직 접근
-* 세션 만료 후 보호 화면 접근
-* 비활성화 계정 로그인
-* 이미 가입된 이메일로 회원가입 시도
-
----
-
-# 15. 완료 기준
-
-B단계는 다음 기준을 만족하면 완료로 본다.
-
-* 사용자가 회원가입 또는 초대 수락으로 조직에 가입할 수 있다.
-* 사용자가 로그인과 로그아웃을 정상적으로 수행할 수 있다.
-* 조직 생성자가 Admin으로 설정된다.
-* Admin이 사용자를 초대할 수 있다.
-* Admin이 팀/부서를 생성할 수 있다.
-* 사용자에게 역할을 부여할 수 있다.
-* 역할에 따라 메뉴와 화면 접근이 제한된다.
-* 기본 앱 레이아웃과 내비게이션이 동작한다.
-* 접근 제한, 오류, 빈 상태 화면이 준비되어 있다.
-* 주요 인증, 초대, 권한 흐름 테스트가 통과한다.
-
----
-
-# 16. 주요 리스크 및 대응
-
-| 리스크 | 설명 | 대응 방향 |
-| --- | --- | --- |
-| 권한 구조 과도한 복잡화 | 초기에 너무 많은 예외 권한을 만들면 구현과 테스트가 어려워짐 | Viewer, Editor, Manager, Admin 중심으로 제한 |
-| 조직 구조 변경 가능성 | 팀/부서 요구가 바뀌면 데이터 구조 영향 발생 | 단순 구조로 시작하되 확장 필드 확보 |
-| 초대 흐름 오류 | 초대 수락과 계정 생성이 꼬일 수 있음 | 초대 상태와 계정 상태를 명확히 분리 |
-| 직접 URL 접근 누락 | 메뉴만 숨기고 실제 접근 차단이 안 될 수 있음 | 화면과 데이터 양쪽에서 권한 검사 |
-| 세션 처리 불안정 | 로그인 유지와 만료 처리가 일관되지 않을 수 있음 | 세션 정책을 먼저 고정 |
-| 관리자 권한 오남용 | Admin 권한 변경이 추적되지 않으면 운영 리스크 발생 | 역할 변경과 초대는 활동 로그 기록 |
-
----
-
-# 17. C단계 연결
-
-B단계 완료 후 C단계 문서 관리 구현으로 넘어간다.
-
-C단계 착수 전 준비되어야 할 항목은 다음과 같다.
-
-* 로그인 사용자 식별 가능
-* 현재 조직 식별 가능
-* 현재 사용자 역할 확인 가능
-* 팀/부서 정보 확인 가능
-* 메뉴 접근 제어 가능
-* 문서 접근 권한 판단에 사용할 조직, 팀, 역할 정보 준비
-* 공통 레이아웃과 기본 화면 상태 준비
-
+Phase C must not modify any Phase-B entity or schema without a documented reason and a permission-policy review.

@@ -100,14 +100,21 @@ Authorization: Bearer <token>
 
 | 코드 | 설명 |
 | --- | --- |
-| UNAUTHORIZED | 인증 필요 |
-| FORBIDDEN | 권한 없음 |
-| NOT_FOUND | 대상 없음 |
+| UNAUTHORIZED | 세션 없음 또는 만료 |
+| FORBIDDEN | 인증되었으나 기능 권한 부족 (예: Viewer가 AI 생성 호출) |
+| NOT_FOUND | 리소스 없음 또는 권한 없음 (보안 정책 §15에 따라 권한 거부 기본 코드) |
 | VALIDATION_ERROR | 입력값 오류 |
 | CONFLICT | 상태 충돌 |
 | RATE_LIMITED | 요청 제한 |
 | INTERNAL_ERROR | 서버 오류 |
 | SERVICE_UNAVAILABLE | 외부 서비스 또는 내부 서비스 장애 |
+
+### 권한 거부 응답 규칙 (Codex 결정 / 보안 정책 §15)
+
+* 기본은 `NOT_FOUND`. 다른 조직 리소스, 권한 없는 Private 자원, 직접 ID 추측 접근 등은 모두 `NOT_FOUND`로 응답한다.
+* 인증된 사용자가 기능 권한이 없어 차단되는 경우만 `FORBIDDEN`을 사용한다(Viewer가 AI 생성, Editor가 관리자 화면, Manager가 Admin 전용 작업 등).
+* `FORBIDDEN` 응답은 `reason_code`(예: `role_required:admin`, `last_admin_protection`)를 포함한다.
+* 마지막 Admin 보호 위반은 `FORBIDDEN`(`reason_code=last_admin_protection`)으로 고정한다.
 
 ---
 
@@ -1036,7 +1043,6 @@ GET /organizations/{organizationId}/admin/dashboard
 ### 권한
 
 * Admin
-* Manager는 제한 조회
 
 ---
 
@@ -1049,7 +1055,6 @@ GET /organizations/{organizationId}/admin/users
 ### 권한
 
 * Admin
-* Manager는 팀 범위 제한
 
 ---
 
@@ -1146,12 +1151,15 @@ PATCH /organizations/{organizationId}/admin/settings
 
 | 영역 | Viewer | Editor | Manager | Admin |
 | --- | --- | --- | --- | --- |
-| 문서 조회 | 허용 문서 | 허용 문서 | 팀 범위 | 정책 범위 |
+| 문서 조회 | 허용 문서 | 허용 문서 | 팀 범위 + 허용 문서 | 메타데이터 전체 / 본문은 일반 권한 규칙 |
 | 문서 작성 | 불가 | 가능 | 가능 | 가능 |
 | AI 생성 | 불가 | 가능 | 가능 | 가능 |
 | 업무 기록 | 불가 | 가능 | 가능 | 가능 |
+| To-do | 불가 | 본인 전용 | 본인 전용 | 본인 전용 |
 | 검색 | 가능 | 가능 | 가능 | 가능 |
-| 관리자 | 불가 | 불가 | 제한 | 가능 |
+| 사용자 초대 | 불가 | 불가 | 불가 (Codex 결정) | 가능 |
+| 템플릿 관리 | 불가 | 불가 | 불가 (Codex 결정) | 가능 |
+| 관리자 화면 | 불가 | 불가 | 불가 (MVP) | 가능 |
 | 조직 설정 | 불가 | 불가 | 불가 | 가능 |
 
 ---
