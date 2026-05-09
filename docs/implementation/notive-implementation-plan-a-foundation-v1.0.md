@@ -1,790 +1,824 @@
-# A. 기반 설계 세부 구현 계획서 v1.0
+# A. Foundation Design Detailed Plan v1.0
 
-# Notive 기반 설계
-
----
-
-# 1. 문서 목적
-
-본 문서는 Notive 전체 구현 계획 중 A단계인 기반 설계의 세부 계획을 정의한다.
-
-A단계의 목적은 개발 착수 전에 제품 구조, 화면 범위, 사용자 흐름, 권한 기준, 데이터 범위, MVP 백로그를 확정하는 것이다. 이 문서는 이후 B단계 서비스 기반 구축과 C-H 단계 구현의 기준 문서로 사용한다.
+# Notive Foundation Design
 
 ---
 
-# 2. A단계 목표
+# 1. Purpose
 
-A단계에서는 다음 질문에 답할 수 있어야 한다.
+This document defines the detailed plan for Phase A (Foundation Design) of Notive's overall implementation plan.
 
-* 1차 MVP에서 사용자는 어떤 흐름으로 서비스를 사용하는가?
-* 어떤 화면을 먼저 만들고, 어떤 화면은 이후로 미룰 것인가?
-* 사용자 역할별로 접근 가능한 기능과 데이터는 무엇인가?
-* 문서, 템플릿, 업무 기록, To-do, 검색에서 필요한 핵심 데이터는 무엇인가?
-* AI 문서 생성은 어떤 입력, 처리, 결과 흐름으로 동작해야 하는가?
-* B-H 단계에서 구현할 작업의 우선순위는 어떻게 나눌 것인가?
+The goal of Phase A is to lock product structure, screen scope, user flows, permission criteria, data scope, and the MVP backlog before development begins. It serves as the reference document for Phase B (service foundation) and Phases C–H (feature implementation).
 
 ---
 
-# 3. A단계 산출물
+# 2. Phase A Goals
 
-A단계 완료 시 다음 산출물이 준비되어야 한다.
+By the end of Phase A, we must be able to answer:
 
-| 산출물 | 설명 | 후속 활용 |
+* What is the user's flow through the first MVP?
+* Which screens are built first, and which are deferred?
+* What features and data are accessible per user role?
+* What core data is required for documents, templates, work records, to-dos, and search?
+* What is the input → processing → output flow for AI document generation?
+* How are work items prioritized across Phases B–H?
+
+---
+
+# 3. Phase A Deliverables
+
+When Phase A completes, the following deliverables must be ready:
+
+| Deliverable | Description | Downstream use |
 | --- | --- | --- |
-| MVP 사용자 흐름 정의서 | 핵심 사용 흐름과 예외 흐름 정리 | 화면 설계, QA 기준 |
-| 화면 목록 및 우선순위 | MVP 화면과 이후 화면 구분 | UI 구현 범위 확정 |
-| 정보 구조 | 메뉴, 내비게이션, 화면 간 이동 구조 | 레이아웃 구현 |
-| 권한 매트릭스 | 역할별 기능 및 데이터 접근 범위 | 인증/권한 구현 |
-| 주요 데이터 정의 | 핵심 데이터 개체와 필드 수준 범위 | DB 설계, API 설계 |
-| AI 생성 흐름 정의 | AI 요청, 참고 자료, 결과 저장 흐름 | AI 기능 구현 |
-| MVP 백로그 | 단계별 구현 항목과 우선순위 | B-H 단계 실행 계획 |
-| 출시 기준 초안 | MVP 완료 판단 기준 | 안정화 및 출시 준비 |
+| MVP user-flow definition | Core flows and exception flows | Screen design, QA criteria |
+| Screen list and priorities | Split MVP screens vs. later screens | UI implementation scope |
+| Information architecture | Menus, navigation, screen-to-screen movement | Layout implementation |
+| Permission matrix | Per-role feature and data access | Auth / permission implementation |
+| Key data definitions | Core data entities and field-level scope | DB design, API design |
+| AI generation flow | AI request, reference materials, result-save flow | AI feature implementation |
+| MVP backlog | Implementation items by phase with priorities | Phases B–H execution |
+| Launch criteria draft | Definition of "MVP done" | Stabilization and launch |
 
 ---
 
-# 4. 설계 원칙
+# 4. Design Principles
 
-## 4.1 MVP 우선
+## 4.1 MVP-first
 
-초기 제품은 모든 업무 자동화를 구현하지 않는다. 반복 문서 작성과 업무 맥락 기반 문서 생성의 유효성을 검증하는 데 집중한다.
-
----
-
-## 4.2 사용자 확인 중심
-
-AI가 자동으로 확정하거나 공유하는 기능은 최소화한다. AI가 생성한 결과는 사용자가 확인, 수정, 저장, 공유하는 흐름을 기본으로 한다.
+The initial product does not target full work automation. It focuses on validating repeated document authoring and work-context-driven document generation.
 
 ---
 
-## 4.3 권한 우선
+## 4.2 User confirmation in the loop
 
-문서와 업무 기록은 조직 내부 정보이므로, 화면 설계와 데이터 설계 단계부터 권한 기준을 포함한다.
-
----
-
-## 4.4 단순한 조직 구조
-
-초기에는 회사, 팀/부서, 사용자, 역할 중심으로 설계한다. 복잡한 계열사, 다중 조직 소속, 세부 직급 체계는 후속 단계에서 확장한다.
+Features that auto-finalize or auto-share AI output are minimized. The default flow is: AI generates → user reviews → user edits → user saves → user (optionally) shares.
 
 ---
 
-## 4.5 확장 가능한 문서 중심 구조
+## 4.3 Permissions first
 
-Notive의 중심 자산은 문서다. 업무 다이어리, To-do, 템플릿, 검색, AI 생성은 모두 문서를 더 잘 만들고 활용하기 위한 보조 구조로 설계한다.
-
----
-
-# 5. 핵심 사용자 흐름
-
-## 5.1 신규 조직 온보딩
-
-### 기본 흐름
-
-1. 사용자가 회원가입 또는 초대 링크로 진입한다.
-2. 신규 조직을 생성하거나 기존 조직 초대를 수락한다.
-3. 사용자 이름, 직무, 팀 정보를 설정한다.
-4. 기본 역할이 부여된다.
-5. 홈 화면으로 이동한다.
-
-### 설계 시 결정할 사항
-
-* 일반 회원가입을 허용할지, 초대 기반 가입만 허용할지 결정
-* 조직 생성 가능 사용자의 기준 결정
-* 최초 조직 생성자를 Admin으로 지정할지 결정
-* 이메일 인증 필수 여부 결정
+Documents and work records are internal organizational data, so screen design and data design include permission criteria from the start.
 
 ---
 
-## 5.2 AI 문서 생성
+## 4.4 Simple organizational structure
 
-### 기본 흐름
-
-1. 사용자가 AI 문서 생성 화면에 진입한다.
-2. 문서 유형을 선택한다.
-3. 템플릿을 선택한다.
-4. 자연어 요청을 입력한다.
-5. 필요한 경우 참고 자료를 선택한다.
-6. AI가 문서 초안을 생성한다.
-7. 사용자가 결과를 검토하고 편집 화면으로 이동한다.
-8. 문서를 저장한다.
-9. 필요 시 팀 또는 특정 사용자에게 공유한다.
-
-### 예외 흐름
-
-* AI 생성 실패 시 재시도 또는 요청 수정 안내
-* 참고 자료가 없을 경우 일반 템플릿 기반 생성
-* 권한 없는 자료를 선택하려는 경우 선택 불가 처리
-* 생성 결과가 마음에 들지 않을 경우 재생성 또는 직접 편집
+Initial design centers on company, team / department, user, and role. Complex structures (subsidiaries, multi-org membership, granular position hierarchies) are deferred to later phases.
 
 ---
 
-## 5.3 문서 작성 및 관리
+## 4.5 Extensible document-centric structure
 
-### 기본 흐름
-
-1. 사용자가 새 문서를 작성하거나 기존 문서를 연다.
-2. 문서를 편집한다.
-3. 임시 저장 또는 저장한다.
-4. 문서 메타데이터를 설정한다.
-5. 공유 범위를 지정한다.
-6. 이후 문서 목록, 검색, 최근 문서에서 다시 접근한다.
-
-### 설계 시 결정할 사항
-
-* 자동 저장 주기
-* 저장 버튼과 자동 저장의 역할 구분
-* 문서 공개 범위 기본값
-* 문서 삭제 방식
-* 버전 복원 범위
+Notive's central asset is the document. Work diary, to-do, templates, search, and AI generation are designed as supporting structures that help create and use documents better.
 
 ---
 
-## 5.4 업무 다이어리 기반 보고서 생성
+# 5. Core User Flows
 
-### 기본 흐름
+## 5.1 New organization onboarding
 
-1. 사용자가 날짜별 업무 기록을 작성한다.
-2. 업무 기록에 프로젝트, 태그, 관련 문서를 연결한다.
-3. 사용자가 보고서 생성을 요청한다.
-4. AI가 선택된 기간의 업무 기록을 참고한다.
-5. 보고서 초안을 생성한다.
-6. 사용자가 수정 후 저장한다.
+### Default flow
 
-### 설계 시 결정할 사항
+1. The user enters via signup or an invitation link.
+2. The user creates a new organization or accepts an invitation to an existing one.
+3. The user sets name, job title, and team information.
+4. A default role is assigned.
+5. The user lands on the home screen.
 
-* 업무 기록의 개인/팀 공유 구분 방식
-* 업무 기록을 AI 생성에 사용할 때 사용자 동의 방식
-* 기간 선택 방식
-* 완료/미완료 업무 표현 방식
+### Decisions locked in this phase (see §15)
 
----
-
-## 5.5 사내 문서 검색
-
-### 기본 흐름
-
-1. 사용자가 검색어를 입력한다.
-2. 시스템이 접근 가능한 문서만 검색한다.
-3. 제목, 요약, 작성자, 날짜, 태그를 포함한 결과를 보여준다.
-4. 사용자가 결과 문서를 연다.
-5. 자연어 검색인 경우 관련 문서 요약과 출처를 함께 확인한다.
-
-### 설계 시 결정할 사항
-
-* 일반 검색과 AI 검색을 같은 화면에 둘지 구분할지 결정
-* 검색 결과 정렬 기준
-* 검색 결과에 표시할 문서 요약 범위
-* 권한이 없는 문서의 존재 여부를 숨기는 방식
+* Signup mode (public / invite / both)
+* Who may create an organization
+* Whether the organization creator becomes the first Admin
+* Whether email verification is required
 
 ---
 
-## 5.6 관리자 운영
+## 5.2 AI document generation
 
-### 기본 흐름
+### Default flow
 
-1. Admin이 관리자 화면에 진입한다.
-2. 사용자를 초대하거나 비활성화한다.
-3. 팀/부서를 생성하고 사용자를 배정한다.
-4. 역할과 권한을 조정한다.
-5. 문서 템플릿을 등록하거나 수정한다.
-6. 주요 활동 로그를 확인한다.
+1. The user enters the AI document generation screen.
+2. The user picks a document type.
+3. The user picks a template.
+4. The user enters a natural-language request.
+5. The user picks reference materials if needed.
+6. The AI generates a draft.
+7. The user reviews the result and moves to the editor.
+8. The user saves the document.
+9. The user shares the document with a team or specific users if needed.
 
-### 설계 시 결정할 사항
+### Exception flow
 
-* Manager가 관리할 수 있는 범위
-* Admin만 가능한 기능
-* 사용자 비활성화 시 문서 소유권 처리
-* 템플릿 변경 시 기존 문서 영향 여부
+* On AI generation failure, retry or guide the user to edit the request.
+* If no reference materials are picked, fall back to template-only generation.
+* If the user selects unauthorized materials, block the selection.
+* If the result is unsatisfactory, regenerate or hand off to the editor for direct editing.
 
 ---
 
-# 6. 화면 목록 및 우선순위
+## 5.3 Document authoring and management
 
-## 6.1 P0 화면
+### Default flow
 
-P0 화면은 MVP 핵심 흐름을 위해 반드시 필요하다.
+1. The user creates a new document or opens an existing one.
+2. The user edits the document.
+3. The user saves (or autosave kicks in).
+4. The user sets metadata.
+5. The user sets the share scope.
+6. The user later returns via document list, search, or recent documents.
 
-| 영역 | 화면 | 목적 |
+### Decisions locked in this phase (see §15)
+
+* Autosave interval
+* Role split between explicit save and autosave
+* Default document share scope
+* Document deletion policy
+* Version restore scope
+
+---
+
+## 5.4 Report generation from the work diary
+
+### Default flow
+
+1. The user authors per-day work records.
+2. The user links a project, tags, and related documents to each entry.
+3. The user requests report generation.
+4. The AI uses the selected period's work records as context.
+5. The AI generates a report draft.
+6. The user edits and saves the report.
+
+### Decisions locked in this phase (see §15)
+
+* How personal vs. team-shared work records are distinguished
+* User consent model when work records are used as AI context
+* Period-selection model
+* How done / not-done work is represented
+
+---
+
+## 5.5 Internal document search
+
+### Default flow
+
+1. The user enters a search query.
+2. The system searches only documents the user has permission to access.
+3. Results show title, summary, author, date, and tags.
+4. The user opens a result document.
+5. For natural-language search, the user also sees a related-document summary with source attribution.
+
+### Decisions locked in this phase (see §15)
+
+* Whether plain search and AI search live on the same screen
+* Result sort order
+* Summary length shown in results
+* Whether the existence of unauthorized documents is hidden
+
+---
+
+## 5.6 Admin operations
+
+### Default flow
+
+1. An Admin enters the admin screen.
+2. The Admin invites or deactivates users.
+3. The Admin creates teams / departments and assigns users.
+4. The Admin adjusts roles and permissions.
+5. The Admin creates or edits document templates.
+6. The Admin checks key activity logs.
+
+### Decisions locked in this phase (see §15)
+
+* What a Manager can manage
+* What only an Admin can do
+* How a deactivated user's documents are handled
+* Whether template edits affect existing documents
+
+---
+
+# 6. Screen List and Priority
+
+## 6.1 P0 screens
+
+P0 screens are required for the MVP core flows.
+
+| Area | Screen | Purpose |
 | --- | --- | --- |
-| 인증 | 로그인 | 사용자 진입 |
-| 인증 | 회원가입/초대 수락 | 조직 참여 |
-| 온보딩 | 조직 생성/선택 | 조직 기반 사용 시작 |
-| 홈 | 대시보드 | 최근 문서와 주요 작업 접근 |
-| AI 생성 | 문서 생성 요청 | AI 문서 생성 시작 |
-| AI 생성 | 생성 결과 미리보기 | 결과 확인 및 편집 전환 |
-| 문서 | 문서 목록 | 저장된 문서 탐색 |
-| 문서 | 문서 편집 | 문서 작성 및 수정 |
-| 문서 | 문서 상세 | 문서 조회 |
-| 문서 | 공유 설정 | 문서 접근 범위 제어 |
-| 업무 | 업무 다이어리 | 업무 기록 작성 |
-| 관리자 | 사용자 관리 | 사용자 초대 및 상태 관리 |
-| 관리자 | 템플릿 관리 | 문서 템플릿 관리 |
+| Auth | Login | User entry |
+| Auth | Signup / accept invite | Join an organization |
+| Onboarding | Organization create / select | Start using under an organization |
+| Home | Dashboard | Quick access to recent documents and key actions |
+| AI generation | Generation request | Start an AI document generation |
+| AI generation | Generation preview | Review result and switch to editor |
+| Documents | Document list | Browse stored documents |
+| Documents | Document editor | Author and edit |
+| Documents | Document detail | View a document |
+| Documents | Share settings | Control access scope |
+| Work | Work diary | Author work records |
+| Admin | User management | Invite users and manage status |
+| Admin | Template management | Manage document templates |
 
 ---
 
-## 6.2 P1 화면
+## 6.2 P1 screens
 
-P1 화면은 MVP 품질과 운영성을 높이는 화면이다.
+P1 screens improve MVP quality and operability.
 
-| 영역 | 화면 | 목적 |
+| Area | Screen | Purpose |
 | --- | --- | --- |
-| 문서 | 버전 기록 | 문서 이력 확인 및 복원 |
-| 검색 | 통합 검색 | 문서 검색 |
-| 업무 | To-do 목록 | 기본 업무 관리 |
-| 관리자 | 팀/부서 관리 | 조직 구조 관리 |
-| 관리자 | 권한 관리 | 역할 및 접근 제어 |
-| 관리자 | 활동 로그 | 감사 및 운영 확인 |
-| 설정 | 개인 설정 | 개인 정보 및 기본값 관리 |
-| 설정 | 조직 설정 | 조직 단위 설정 관리 |
+| Documents | Version history | Inspect history and restore |
+| Search | Unified search | Find documents |
+| Work | To-do list | Basic work item management |
+| Admin | Team / department management | Manage organization structure |
+| Admin | Permission management | Roles and access control |
+| Admin | Activity log | Audit and operations |
+| Settings | Personal settings | Personal info and defaults |
+| Settings | Organization settings | Per-organization configuration |
 
 ---
 
-## 6.3 P2 화면
+## 6.3 P2 screens
 
-P2 화면은 후속 단계에서 구현하거나 고객 요구에 따라 확장한다.
+P2 screens are built later or expanded based on customer demand.
 
-| 영역 | 화면 | 목적 |
+| Area | Screen | Purpose |
 | --- | --- | --- |
-| 리포트 | 사용량 대시보드 | 사용량 및 성과 분석 |
-| 검색 | AI 검색 상세 | 검색 요약과 출처 고도화 |
-| 업무 | 프로젝트 상세 | 프로젝트 중심 업무 관리 |
-| 관리자 | 보안 설정 고도화 | 엔터프라이즈 보안 대응 |
-| 연동 | 외부 서비스 연동 | 외부 도구 연결 |
+| Reports | Usage dashboard | Usage and outcome analytics |
+| Search | AI search detail | Richer summaries and source attribution |
+| Work | Project detail | Project-centric work management |
+| Admin | Advanced security settings | Enterprise-grade security |
+| Integrations | External service integrations | Connect external tools |
 
 ---
 
-# 7. 정보 구조
+# 7. Information Architecture
 
-## 7.1 기본 내비게이션
+## 7.1 Base navigation
 
-초기 내비게이션은 다음 구조를 기준으로 한다.
+The initial navigation follows this structure:
 
-* 홈
-* AI 문서 생성
-* 문서
-* 업무 다이어리
+* Home
+* AI document generation
+* Documents
+* Work diary
 * To-do
-* 검색
-* 관리자
-* 설정
+* Search
+* Admin
+* Settings
 
 ---
 
-## 7.2 화면 접근 기준
+## 7.2 Screen access
 
-| 메뉴 | 접근 대상 |
+| Menu | Access |
 | --- | --- |
-| 홈 | 모든 로그인 사용자 |
-| AI 문서 생성 | Editor 이상 |
-| 문서 | 모든 로그인 사용자 |
-| 업무 다이어리 | Editor 이상 |
-| To-do | Editor 이상 |
-| 검색 | 모든 로그인 사용자 |
-| 관리자 | Manager 이상 일부, Admin 전체 |
-| 설정 | 모든 로그인 사용자 |
+| Home | All logged-in users |
+| AI document generation | Editor and above |
+| Documents | All logged-in users |
+| Work diary | Editor and above |
+| To-do | Editor and above |
+| Search | All logged-in users |
+| Admin | Manager (partial) and Admin (full) |
+| Settings | All logged-in users |
 
 ---
 
-## 7.3 홈 화면 구성
+## 7.3 Home composition
 
-홈 화면은 사용자의 다음 행동을 빠르게 이어주는 역할을 한다.
+The home screen exists to chain the user into their next action quickly.
 
-### 주요 구성
+### Main blocks
 
-* 새 AI 문서 생성 버튼
-* 최근 문서
-* 최근 업무 기록
-* 내 To-do
-* 공유받은 문서
-* 관리자에게만 보이는 운영 알림
+* "New AI document" button
+* Recent documents
+* Recent work records
+* My to-dos
+* Documents shared with me
+* Operations notices visible only to admins
 
 ---
 
-# 8. 권한 매트릭스
+# 8. Permission Matrix
 
-## 8.1 역할 정의
+## 8.1 Role definitions
 
-| 역할 | 설명 |
+| Role | Description |
 | --- | --- |
-| Viewer | 허용된 문서 조회 중심 사용자 |
-| Editor | 문서 작성과 수정이 가능한 일반 사용자 |
-| Manager | 팀 문서와 팀 구성원을 관리하는 사용자 |
-| Admin | 조직 전체를 관리하는 사용자 |
+| Viewer | Read-only user limited to documents they are allowed to access |
+| Editor | General user who can author and edit documents |
+| Manager | Manages team documents and team members |
+| Admin | Manages the entire organization |
 
 ---
 
-## 8.2 기능 권한
+## 8.2 Feature permissions
 
-| 기능 | Viewer | Editor | Manager | Admin |
+| Feature | Viewer | Editor | Manager | Admin |
 | --- | --- | --- | --- | --- |
-| 문서 조회 | 가능 | 가능 | 가능 | 가능 |
-| 문서 작성 | 불가 | 가능 | 가능 | 가능 |
-| 문서 수정 | 권한 있는 문서만 | 권한 있는 문서만 | 팀 문서 가능 | 전체 또는 설정 범위 내 가능 |
-| 문서 공유 | 불가 | 요청 또는 제한 공유 | 팀 범위 공유 | 전체 공유 설정 가능 |
-| AI 문서 생성 | 불가 | 가능 | 가능 | 가능 |
-| 업무 다이어리 작성 | 불가 | 가능 | 가능 | 가능 |
-| To-do 작성 | 불가 | 가능 | 가능 | 가능 |
-| 팀 사용자 관리 | 불가 | 불가 | 제한 가능 | 가능 |
-| 템플릿 관리 | 불가 | 불가 | 제한 가능 | 가능 |
-| 권한 설정 | 불가 | 불가 | 불가 또는 제한 | 가능 |
-| 활동 로그 조회 | 불가 | 불가 | 팀 범위 가능 | 가능 |
+| View documents | Yes | Yes | Yes | Yes |
+| Create documents | No | Yes | Yes | Yes |
+| Edit documents | Permitted docs only | Permitted docs only | Team docs allowed | Within configured scope |
+| Share documents | No | Limited / requested sharing | Team-scope sharing | Full sharing settings |
+| AI generation | No | Yes | Yes | Yes |
+| Author work diary | No | Yes | Yes | Yes |
+| Author to-dos | No | Yes | Yes | Yes |
+| Manage team users | No | No | Limited | Yes |
+| Manage templates | No | No | Limited | Yes |
+| Permission settings | No | No | No or limited | Yes |
+| View activity log | No | No | Team scope | Yes |
 
 ---
 
-## 8.3 문서 접근 범위
+## 8.3 Document access scope
 
-문서는 다음 공유 범위를 가진다.
+A document carries one of these share scopes:
 
-| 공유 범위 | 설명 |
+| Scope | Description |
 | --- | --- |
-| Private | 작성자만 접근 가능 |
-| Team | 지정 팀 구성원 접근 가능 |
-| Department | 지정 부서 구성원 접근 가능 |
-| Organization | 조직 전체 접근 가능 |
-| Specific Users | 지정 사용자만 접근 가능 |
+| Private | Only the author |
+| Team | Members of the assigned team |
+| Department | Members of the assigned department |
+| Organization | Everyone in the organization |
+| Specific Users | Only explicitly listed users |
 
 ---
 
-## 8.4 권한 설계 결정 사항
+## 8.4 Locked permission decisions
 
-A단계에서 다음 항목을 확정한다.
+The MVP decisions on permissions are recorded in §15. In short:
 
-* 문서 기본 공유 범위
-* Manager의 공유 승인 권한 여부
-* Editor의 외부 공유 가능 여부
-* 문서 소유자 변경 가능 여부
-* 비활성화된 사용자의 문서 처리 방식
-* Admin의 전체 문서 열람 허용 여부
+* Default share scope: **Private**
+* Manager share-approval: **Not in MVP** (Manager can share team-scope directly without an approval workflow)
+* Editor external sharing: **Not in MVP** (no external link sharing)
+* Document owner change: **Admin only**, audit-logged
+* Deactivated user's documents: ownership transfers to the user's primary team's Manager; if none, to the organization's first Admin
+* Admin organization-wide read of document bodies: **Not in MVP**. Admin sees metadata only across the organization. Body access requires the document to be shared at Organization scope or shared explicitly to the Admin.
 
 ---
 
-# 9. 주요 데이터 정의
+# 9. Key Data Definitions
 
-## 9.1 핵심 데이터 개체
+## 9.1 Core entities
 
-| 데이터 | 설명 | MVP 필요 여부 |
+| Data | Description | MVP necessity |
 | --- | --- | --- |
-| User | 사용자 계정 | 필수 |
-| Organization | 회사 또는 조직 | 필수 |
-| Team | 팀 또는 부서 | 필수 |
-| Membership | 사용자의 조직 소속 및 역할 | 필수 |
-| Role | 역할 유형 | 필수 |
-| Document | 문서 본문과 상태 | 필수 |
-| DocumentVersion | 문서 수정 이력 | P1 |
-| DocumentShare | 문서 공유 범위 | 필수 |
-| Template | 문서 템플릿 | 필수 |
-| DiaryEntry | 업무 다이어리 | 필수 |
-| Todo | 할 일 | P1 |
-| Project | 업무 단위 | P1 |
-| ActivityLog | 주요 활동 로그 | P1 |
-| AIRequestLog | AI 요청 기록 | 필수 |
-| SearchIndex | 검색 대상 정보 | P1 |
+| User | User account | Required |
+| Organization | Company or organization | Required |
+| Team | Team or department | Required |
+| Membership | A user's organization membership and role | Required |
+| Role | Role types | Required |
+| Invitation | Invite token for signup / org join | Required |
+| Session | Auth session record | Required |
+| Document | Document body and state | Required |
+| DocumentVersion | Document revision history | P1 |
+| DocumentShare | Document share scope | Required |
+| Template | Document templates | Required |
+| DiaryEntry | Work diary entries | Required |
+| Todo | To-do items | P1 |
+| Project | Work unit | P1 |
+| ActivityLog | Key activity log | P1 |
+| AIRequestLog | AI request records | Required |
+| SearchIndex | Search target information | P1 |
 
 ---
 
 ## 9.2 User
 
-### 주요 필드
+### Key fields
 
-* 이름
-* 이메일
-* 프로필 이미지
-* 상태
-* 마지막 로그인 시각
+* Name
+* Email
+* Profile image
+* Status
+* Last login timestamp
 
-### 설계 결정 사항
+### Locked decisions
 
-* 이메일을 계정 고유 식별자로 사용할지 결정
-* 소셜 로그인 지원 여부 결정
-* 사용자 삭제와 비활성화 정책 구분
+* Email is the unique account identifier.
+* Social login is **not in MVP**.
+* User deletion is **soft delete**; deactivation is a separate state. See deletion policy in §15.
 
 ---
 
 ## 9.3 Organization
 
-### 주요 필드
+### Key fields
 
-* 조직명
-* 조직 식별자
-* 플랜 또는 사용 범위
-* 기본 보안 설정
-* 생성일
+* Organization name
+* Organization identifier
+* Plan / scope
+* Default security settings
+* Created at
 
-### 설계 결정 사항
+### Locked decisions
 
-* 한 사용자가 여러 조직에 속할 수 있는지 결정
-* 조직명 변경 권한 결정
-* 조직 삭제 또는 비활성화 정책 결정
+* A user belongs to exactly one organization in MVP.
+* Organization name change: Admin only.
+* Organization deletion: Admin-initiated soft delete with a 30-day cooldown before purge.
 
 ---
 
 ## 9.4 Team
 
-### 주요 필드
+### Key fields
 
-* 팀명
-* 상위 조직
-* 팀 관리자
-* 상태
+* Team name
+* Parent organization
+* Team manager
+* Status
 
-### 설계 결정 사항
+### Locked decisions
 
-* 부서와 팀을 하나의 개념으로 볼지 구분할지 결정
-* 다중 팀 소속 허용 여부 결정
-* 팀 삭제 시 문서 처리 방식 결정
+* Team and Department are unified under "Team" in MVP. The "Department" share scope is dropped (see §15).
+* A user may belong to 0 or more teams within their organization.
+* Team deletion: documents owned by the team transfer to the organization-default team; if none exists, to the first Admin.
 
 ---
 
 ## 9.5 Document
 
-### 주요 필드
+### Key fields
 
-* 제목
-* 본문
-* 문서 유형
-* 상태
-* 작성자
-* 소유 팀
-* 공유 범위
-* 태그
-* 생성 방식
-* 생성일
-* 수정일
+* Title
+* Body
+* Document type
+* Status
+* Author
+* Owning team
+* Share scope
+* Tags
+* Generation source (manual / AI)
+* Created at
+* Updated at
 
-### 상태 예시
+### Status values
 
 * Draft
 * Active
 * Archived
 * Deleted
 
-### 설계 결정 사항
+### Locked decisions
 
-* 문서 본문 저장 형식
-* 자동 저장과 명시 저장의 구분
-* 삭제 문서 보존 기간
-* 문서 유형 기본값
-* 첨부 파일 지원 시점
+* Body storage format: structured JSON (block-based) plus rendered Markdown for preview / search indexing.
+* Autosave: every 10 seconds while editing; explicit Save promotes Draft → Active.
+* Deleted-document retention: 30 days, then hard-deleted by a background job. Owner or Admin can restore within the retention window.
+* Default document type: "Note" (unstructured).
+* File attachments: **deferred to post-MVP**.
 
 ---
 
 ## 9.6 Template
 
-### 주요 필드
+### Key fields
 
-* 템플릿명
-* 문서 유형
-* 적용 조직 또는 팀
-* 본문 구조
-* 사용 여부
-* 생성자
-* 수정일
+* Template name
+* Document type
+* Applied organization or team
+* Body structure
+* In-use flag
+* Created by
+* Updated at
 
-### 설계 결정 사항
+### Locked decisions
 
-* 기본 제공 템플릿 목록
-* 팀별 템플릿 우선순위
-* 템플릿 수정 시 기존 문서 영향 여부
+* A small built-in template set ships with MVP (meeting notes, weekly report, project plan, decision memo).
+* Team-scoped templates take priority over organization-scoped templates when both apply.
+* Editing a template does **not** retroactively modify existing documents that used it. Existing docs keep their snapshotted structure.
 
 ---
 
 ## 9.7 DiaryEntry
 
-### 주요 필드
+### Key fields
 
-* 작성자
-* 날짜
-* 내용
-* 관련 프로젝트
-* 태그
-* 공개 범위
-* 관련 문서
+* Author
+* Date
+* Content
+* Related project
+* Tags
+* Visibility
+* Related documents
 
-### 설계 결정 사항
+### Locked decisions
 
-* 업무 기록 기본 공개 범위
-* 팀 공유 기록과 개인 기록의 구분
-* AI 생성 참고 자료로 사용할 때의 표시 방식
+* Default visibility: **Private** (author only).
+* Author may opt to share an entry to **Team**.
+* AI generation: an entry may be used as AI context only if the requesting user has read access to it under the same rules used by document detail and search.
 
 ---
 
 ## 9.8 Todo
 
-### 주요 필드
+### Key fields
 
-* 제목
-* 설명
-* 담당자
-* 마감일
-* 상태
-* 우선순위
-* 관련 문서
-* 관련 프로젝트
+* Title
+* Description
+* Owner
+* Due date
+* Status
+* Priority
+* Related document
+* Related project
 
-### 설계 결정 사항
+### Locked decisions
 
-* MVP에서 개인 To-do만 지원할지 팀 To-do까지 지원할지 결정
-* 완료 상태의 종류
-* 보고서 생성에 포함할 기준
-
----
-
-# 10. AI 문서 생성 흐름 설계
-
-## 10.1 입력 요소
-
-AI 문서 생성 시 사용 가능한 입력은 다음과 같다.
-
-* 문서 유형
-* 템플릿
-* 자연어 요청
-* 참고 문서
-* 업무 다이어리
-* To-do
-* 프로젝트 또는 태그
-* 생성 목적
+* MVP supports **personal to-dos only**. Assignment to other users is deferred.
+* Status values in MVP: `todo`, `in_progress`, `done`.
+* Reports can include a to-do as context only when its status is `done` within the selected period.
 
 ---
 
-## 10.2 생성 흐름
+# 10. AI Document Generation Flow
 
-1. 사용자가 문서 유형을 선택한다.
-2. 시스템이 사용 가능한 템플릿을 보여준다.
-3. 사용자가 요청 내용을 입력한다.
-4. 사용자가 참고 자료를 선택한다.
-5. 시스템이 권한이 있는 자료만 생성 맥락에 포함한다.
-6. AI가 초안을 생성한다.
-7. 시스템이 결과와 참고 출처를 보여준다.
-8. 사용자가 편집기로 이동한다.
-9. 사용자가 저장하면 문서로 등록된다.
+## 10.1 Inputs
 
----
+Available inputs at generation time:
 
-## 10.3 결과 처리
-
-AI 생성 결과는 즉시 확정 문서가 아니라 초안으로 취급한다.
-
-### 결과 상태
-
-* 생성 중
-* 생성 완료
-* 생성 실패
-* 편집 중
-* 저장 완료
+* Document type
+* Template
+* Natural-language request
+* Reference documents
+* Work diary entries
+* To-dos
+* Project or tags
+* Generation purpose
 
 ---
 
-## 10.4 AI 로그 기준
+## 10.2 Generation flow
 
-AI 요청 기록은 품질 개선과 문제 추적을 위해 저장한다.
-
-### 저장할 항목
-
-* 요청 사용자
-* 요청 시각
-* 문서 유형
-* 선택 템플릿
-* 참고 자료 목록
-* 생성 성공 여부
-* 오류 유형
-* 결과 저장 여부
-
-### 주의 사항
-
-민감한 본문 전체를 로그에 저장할지 여부는 보안 정책에 따라 별도 결정한다.
+1. The user picks a document type.
+2. The system shows applicable templates.
+3. The user enters the request.
+4. The user picks reference materials.
+5. The system filters reference materials to those the user has permission to read.
+6. The AI generates a draft.
+7. The system shows the result with reference attributions.
+8. The user moves to the editor.
+9. On save, the draft becomes a registered document.
 
 ---
 
-# 11. MVP 백로그 초안
+## 10.3 Result handling
 
-## 11.1 Epic 목록
+AI output is treated as a draft, never an automatically finalized document.
 
-| Epic | 설명 | 우선순위 |
+### Result states
+
+* Generating
+* Generated
+* Failed
+* Editing
+* Saved
+
+---
+
+## 10.4 AI logging
+
+AI request records are stored to support quality improvement and incident investigation. Locked retention scope:
+
+### Stored fields
+
+* Requester
+* Request timestamp
+* Document type
+* Selected template ID
+* Reference material IDs (IDs only, not contents)
+* Success / failure
+* Error code
+* Latency
+* Token usage
+* Whether the result was saved
+
+### Not stored by default
+
+* Full prompt body
+* Full AI response body
+* Document body content
+
+If the user explicitly opts in via a "Report problem" / feedback flow, the prompt and response bodies for that single request are stored for 30 days for triage and then purged.
+
+### Retention
+
+* Standard records: 90 days.
+* Opt-in problem-report payloads: 30 days.
+
+---
+
+# 11. MVP Backlog Draft
+
+## 11.1 Epics
+
+| Epic | Description | Priority |
 | --- | --- | --- |
-| 인증 및 조직 | 사용자 로그인, 조직 생성, 초대 | P0 |
-| 권한 | 역할, 문서 접근, 메뉴 접근 제어 | P0 |
-| 문서 | 문서 목록, 편집, 저장, 공유 | P0 |
-| AI 생성 | 문서 유형, 템플릿, 요청, 결과 저장 | P0 |
-| 템플릿 | 기본 템플릿, 조직/팀 템플릿 | P0 |
-| 업무 다이어리 | 업무 기록 작성 및 문서 생성 참고 | P0 |
-| 검색 | 문서 검색, 결과 조회 | P1 |
-| To-do | 기본 할 일 관리 | P1 |
-| 관리자 | 사용자, 팀, 템플릿 관리 | P1 |
-| 로그 | 주요 활동 및 AI 요청 기록 | P1 |
+| Auth and organization | Login, organization creation, invites | P0 |
+| Permissions | Roles, document access, menu access | P0 |
+| Documents | Document list, editor, save, share | P0 |
+| AI generation | Document type, template, request, result save | P0 |
+| Templates | Built-in, organization / team templates | P0 |
+| Work diary | Work-record authoring and use as AI context | P0 |
+| Search | Document search, results | P1 |
+| To-do | Basic personal to-dos | P1 |
+| Admin | User, team, template management | P1 |
+| Logs | Key activity and AI request records | P1 |
 
 ---
 
-## 11.2 P0 백로그
+## 11.2 P0 backlog
 
-* 사용자 로그인
-* 초대 수락
-* 조직 생성
-* 팀 생성
-* 사용자 역할 부여
-* 문서 목록 조회
-* 문서 작성
-* 문서 저장
-* 문서 상세 조회
-* 문서 공유 범위 설정
-* AI 문서 생성 요청
-* AI 생성 결과 미리보기
-* 생성 결과 편집 전환
-* 템플릿 선택
-* 기본 템플릿 등록
-* 업무 다이어리 작성
-* 업무 기록 기반 보고서 생성
-
----
-
-## 11.3 P1 백로그
-
-* 문서 버전 기록
-* 문서 복원
-* 통합 검색
-* 검색 필터
-* To-do 작성
-* To-do 완료 처리
-* 관리자 사용자 목록
-* 관리자 팀 관리
-* 템플릿 수정
-* 활동 로그 조회
-* AI 요청 로그 조회
+* User login
+* Accept invite
+* Create organization
+* Create team
+* Assign user role
+* View document list
+* Author document
+* Save document
+* View document detail
+* Set document share scope
+* Submit AI document generation request
+* Preview AI generation result
+* Hand off to editor
+* Pick template
+* Register a built-in template
+* Author work diary entry
+* Generate a report from work records
 
 ---
 
-## 11.4 P2 백로그
+## 11.3 P1 backlog
 
-* AI 검색 결과 요약 고도화
-* 프로젝트 상세 관리
-* 팀 단위 리포트
-* 사용량 대시보드
-* 보안 설정 고도화
-* 외부 서비스 연동 준비
-
----
-
-# 12. 기술 방향 결정 항목
-
-A단계에서 상세 구현을 확정하지는 않지만, B단계 착수를 위해 다음 방향은 결정해야 한다.
-
-## 결정 필요 항목
-
-* Web 애플리케이션 프레임워크
-* 데이터베이스
-* 인증 방식
-* 파일 및 문서 저장 방식
-* AI API 연동 방식
-* 배포 환경
-* 로깅 및 모니터링 방식
-* 개발, 테스트, 운영 환경 구분
+* Document version history
+* Document restore
+* Unified search
+* Search filters
+* Author to-do
+* Mark to-do done
+* Admin user list
+* Admin team management
+* Edit template
+* View activity log
+* View AI request log
 
 ---
 
-## 결정 기준
+## 11.4 P2 backlog
 
-* MVP 개발 속도
-* 팀의 기술 숙련도
-* 운영 난이도
-* 보안 요구사항
-* 향후 엔터프라이즈 확장 가능성
-* 비용 예측 가능성
-
----
-
-# 13. 출시 기준 초안
-
-A단계에서는 이후 H단계에서 사용할 출시 기준의 초안을 정의한다.
-
-## MVP 출시 가능 기준
-
-* 사용자가 가입 또는 초대 수락 후 조직에 진입할 수 있다.
-* Editor 이상 사용자가 AI 문서 초안을 생성할 수 있다.
-* 생성된 문서를 편집하고 저장할 수 있다.
-* 저장된 문서를 목록과 상세에서 확인할 수 있다.
-* 문서 공유 범위에 따라 접근이 제한된다.
-* 업무 다이어리 기록을 문서 생성에 활용할 수 있다.
-* Admin이 사용자와 템플릿을 관리할 수 있다.
-* 주요 활동과 AI 요청이 추적 가능하다.
+* Richer AI search summaries
+* Project detail management
+* Team-level reports
+* Usage dashboard
+* Advanced security settings
+* External service integration scaffolding
 
 ---
 
-# 14. A단계 체크리스트
+# 12. Technical Direction Decisions
 
-## 제품 범위
+Phase A does not finalize detailed implementation choices, but the following directions must be locked before Phase B.
 
-* MVP 포함 기능과 제외 기능이 확정되었는가
-* P0, P1, P2 우선순위가 합의되었는가
-* 핵심 사용자 흐름이 문서화되었는가
+## Items to decide
 
----
-
-## 화면 및 UX
-
-* P0 화면 목록이 확정되었는가
-* 기본 내비게이션 구조가 확정되었는가
-* 홈 화면의 주요 구성 요소가 확정되었는가
-* AI 생성 흐름의 입력과 결과 화면이 정의되었는가
+* Web application framework
+* Database
+* Authentication method
+* File and document storage
+* AI API integration
+* Deployment environment
+* Logging and monitoring
+* Dev / test / prod environment separation
 
 ---
 
-## 권한
+## Decision criteria
 
-* 역할별 기능 권한이 확정되었는가
-* 문서 공유 범위가 확정되었는가
-* Admin과 Manager의 차이가 명확한가
-* 검색과 AI 생성에서 권한 제한 기준이 정의되었는가
-
----
-
-## 데이터
-
-* 핵심 데이터 개체가 확정되었는가
-* 문서 상태와 공유 범위가 정의되었는가
-* 업무 다이어리와 To-do의 MVP 범위가 정해졌는가
-* AI 요청 로그 저장 기준이 정해졌는가
+* MVP development speed
+* Team's existing skill set
+* Operational complexity
+* Security requirements
+* Future enterprise expansion
+* Cost predictability
 
 ---
 
-## 후속 준비
+# 13. Launch Criteria Draft
 
-* B단계 착수에 필요한 결정 사항이 정리되었는가
-* MVP 백로그가 Epic 단위로 정리되었는가
-* 출시 기준 초안이 정의되었는가
-* 미결정 사항이 별도 목록으로 관리되는가
+Phase A defines a draft of the launch criteria that Phase H will use.
+
+## MVP launch criteria
+
+* The user can enter an organization via signup or invite acceptance.
+* Editor-and-above users can generate AI document drafts.
+* Generated documents can be edited and saved.
+* Saved documents are viewable in list and detail.
+* Document access is restricted by share scope.
+* Work diary entries can be used to generate documents.
+* An Admin can manage users and templates.
+* Key activities and AI requests are traceable.
 
 ---
 
-# 15. 미결정 사항 목록
+# 14. Phase A Checklist
 
-A단계 진행 중 반드시 결정해야 할 항목은 다음과 같다.
+## Product scope
 
-| 항목 | 선택지 | 영향 |
+* Are the in-scope and out-of-scope features locked?
+* Are P0, P1, P2 priorities agreed?
+* Are core user flows documented?
+
+---
+
+## Screens and UX
+
+* Is the P0 screen list locked?
+* Is the base navigation locked?
+* Are the home screen's main blocks locked?
+* Are the input and result screens of the AI generation flow defined?
+
+---
+
+## Permissions
+
+* Are per-role feature permissions locked?
+* Is the document share scope locked?
+* Is the Admin vs. Manager distinction clear?
+* Are permission limits in search and AI generation defined?
+
+---
+
+## Data
+
+* Are the core data entities locked?
+* Are document states and share scopes defined?
+* Is the MVP scope of work diary and to-do locked?
+* Is the AI request log retention scope locked?
+
+---
+
+## Phase B readiness
+
+* Are the decisions required to start Phase B locked?
+* Is the MVP backlog organized by epic?
+* Is the launch-criteria draft defined?
+* Are deferred items tracked separately?
+
+---
+
+# 15. Locked MVP Decisions
+
+The following decisions are locked for MVP. They are the contract Phase B builds against. Any change requires a new revision of this document and Codex verification.
+
+| Topic | Decision | Why |
 | --- | --- | --- |
-| 가입 방식 | 공개 가입, 초대 기반, 둘 다 지원 | 온보딩 및 보안 정책 |
-| 최초 Admin | 조직 생성자, 별도 승인자 | 조직 운영 방식 |
-| 조직 소속 | 단일 조직, 다중 조직 | 데이터 구조와 화면 전환 |
-| 팀 구조 | 단일 팀, 다중 팀, 부서/팀 분리 | 권한과 문서 공유 |
-| 문서 기본 공개 범위 | Private, Team, Organization | 보안과 협업 경험 |
-| Admin 문서 열람 | 전체 허용, 권한 있는 문서만 | 보안 정책 |
-| 업무 기록 공개 범위 | 개인 기본, 팀 기본 | AI 맥락 활용 범위 |
-| To-do 범위 | 개인만, 팀까지 | E단계 구현 규모 |
-| 문서 삭제 | 즉시 삭제, 휴지통, 보존 기간 | 복구와 감사 요구 |
-| AI 로그 저장 | 메타데이터만, 일부 내용 포함 | 품질 개선과 보안 |
+| Signup mode | Self-serve signup with email verification. After signup, the user must either accept an invite or create a new organization. No discover / request-to-join flow. | Single bootstrap path keeps onboarding simple while still requiring email proof. |
+| First Admin | The user who creates a new organization automatically becomes that organization's first Admin. The system enforces "last Admin" protection: removing or downgrading the only remaining Admin is rejected. | Removes a separate approval step in MVP and protects against accidental lockout. |
+| Organization membership | One organization per user in MVP. Multi-org membership is deferred. | Avoids cross-org context-switching UI and a wider permission surface for MVP. |
+| Team structure | Single-level teams. "Department" is unified into "Team"; the Department share scope is dropped. A user may belong to 0..N teams. | Keeps the org model tractable for MVP while preserving room to add Department later. |
+| Default document share scope | Private (author only). Available scopes in MVP: Private, Team, Organization, Specific Users. | Conservative default; users opt in to broader visibility. |
+| Admin document visibility | Admin sees metadata for all organization documents (title, owner, scope, sizes, timestamps). Admin reads body content only when the document is at Organization scope or has been shared with the Admin. Cross-organization body access is not granted in MVP. | Permissions-first principle and user trust. Compliance-style override is a post-MVP feature. |
+| Work diary visibility | Default Private. Author may share an entry to Team. AI may use an entry as context only if the requesting user has read access to it under the same rule. | Mirrors document permission semantics; protects personal notes by default. |
+| To-do MVP scope | Personal to-dos only. Statuses: `todo`, `in_progress`, `done`. No assignment to other users, no team to-dos. | Keeps E-phase scope small; team workflows are P2. |
+| Document deletion policy | Soft delete with 30-day retention. Owner or Admin can restore within the window. A background job hard-deletes after 30 days. Hard delete from the trash before 30 days requires Admin "purge" with explicit confirmation. | Data-protection principle from CLAUDE.md §4.3. |
+| AI log retention | Store metadata only by default (requester, timestamp, doc type, template ID, reference IDs, success / failure, error code, latency, token usage, save flag). Standard retention 90 days. Full prompt and response bodies are stored only via opt-in problem-report flow with 30-day retention. | Permissions-first and AI-output-is-draft principles; protects sensitive content from accidental retention. |
+| Authentication method | Email + password with mandatory email verification. Server-side session storage. Password policy: 10+ chars, mixed character classes, breach check at signup and password change. | Lowest-friction baseline that still meets MVP security bar. SSO and 2FA are deferred. |
+| P0 screens | Locked to the list in §6.1. | Fixed scope for Phases B–H. |
+| Phase B minimum entities | `User`, `Organization`, `Membership`, `Team`, `Role` (enum: Viewer / Editor / Manager / Admin), `Invitation`, `Session`, plus an `AuditLog` skeleton (table + writer interface; full write coverage lands in Phase G). | Sufficient to build auth, org/team, role, invitation, and the base layout in Phase B without pulling in document or AI tables. |
 
 ---
 
-# 16. 다음 단계 연결
+# 16. Deferred Items (post-MVP)
 
-A단계가 완료되면 B단계 서비스 기반 구축으로 넘어간다.
+These items are explicitly **not** in MVP. They must not be silently smuggled into Phase B–H scope.
 
-B단계 착수 전 필요한 최소 확정 항목은 다음과 같다.
+| Item | Reason |
+| --- | --- |
+| Multi-organization membership | Adds context-switch UI and permission complexity; revisit after first customers. |
+| Department concept (separate from Team) | Single-level Team covers the MVP need; Department becomes meaningful at enterprise scale. |
+| External link sharing of documents | Outside the controlled-access model in MVP. |
+| Manager share-approval workflow | Adds workflow surface; Manager shares team-scope directly in MVP. |
+| Admin organization-wide body read / compliance access | Trust-sensitive; design separately with audit + legal review. |
+| Team-assigned to-dos | E-phase scope kept tight; depends on a clearer ownership model. |
+| File attachments on documents | Storage, antivirus, preview pipeline; sized as its own phase. |
+| Document version restore UI | Versioning storage lands in MVP, restore UI is P1. |
+| SSO / SAML / OAuth | Enterprise sales requirement, post-MVP. |
+| 2FA / TOTP | High priority post-MVP, not blocking launch. |
+| Real-time collaborative editing | Out of MVP scope per §3 of the overall plan. |
+| Autonomous AI agent execution | Out of MVP scope per §3 of the overall plan. |
+| Mobile / desktop / on-premise | Out of MVP scope per §3 of the overall plan. |
+| AI prompt and response body retention by default | Sensitive; opt-in only in MVP. |
 
-* 인증 방식
-* 조직/팀/사용자 구조
-* 역할 및 권한 기준
-* P0 화면 목록
-* 문서 데이터 기본 구조
-* 템플릿 데이터 기본 구조
-* AI 생성 요청 흐름
-* MVP 백로그 P0 범위
+---
 
+# 17. Phase B Entry Criteria
+
+Phase A is complete and Phase B may start when **all** of the following are true:
+
+* §15 decisions are locked in this document.
+* §16 deferred items are recorded and not in Phase B scope.
+* P0 screen list (§6.1) is locked.
+* Phase B minimum entities (§15) are reflected in the database design document.
+* Authentication method, default share scope, deletion policy, and AI log retention from §15 are reflected in the security and AI policy documents.
+* Codex has verified the §15 decisions against the permission policy and database design documents.
