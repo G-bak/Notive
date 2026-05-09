@@ -240,6 +240,7 @@ MVP는 사용자당 단일 팀 소속만 지원한다(Phase A §15). 다중 팀 
 ### 제약/인덱스
 
 * `user_id, organization_id` unique
+* `user_id` partial unique where `status = 'Active'` (MVP single active organization membership)
 * `organization_id, role` index
 * `organization_id, team_id` index
 * `organization_id, status` index

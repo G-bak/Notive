@@ -62,27 +62,32 @@ Notive MVP 운영의 목표는 다음과 같다.
 
 ## 4.1 MVP 구성 요소
 
-| 구성 요소 | 설명 |
-| --- | --- |
-| Web App/API | 사용자 화면과 API 요청 처리 |
-| PostgreSQL | 핵심 데이터 저장 |
-| Object Storage | 첨부 파일 또는 원본 파일 저장 |
-| Background Worker | 인덱싱, 집계, 장기 작업 처리 |
-| AI Provider | AI 문서 생성과 요약 처리 |
-| Logging/Monitoring | 오류와 사용량 추적 |
+| 구성 요소 | 설명 | 도입 단계 |
+| --- | --- | --- |
+| Web App/API | 사용자 화면과 API 요청 처리 | B단계 |
+| PostgreSQL | 핵심 데이터 저장 (사용자/조직/문서/세션 포함) | B단계 |
+| Redis (단기 스토리지) | AI 미리보기 본문 단기 보관 (24시간 idle TTL). 세션은 Postgres에 저장하므로 Redis는 사용하지 않는다. | B단계 프로비저닝, D단계 사용 |
+| Background Worker / Cron | 보존 정책 정리 작업 (soft-delete 30일, AI 메타 90일, AI 페이로드 30일, AI 미리보기 24시간) | B단계 프레임워크, C/D 작업 등록 |
+| Object Storage | 첨부 파일 또는 원본 파일 저장 | C/이후 |
+| AI Provider | AI 문서 생성과 요약 처리 | D단계 |
+| Mail Provider | 가입 인증 메일, 초대 메일 | B단계 |
+| Logging/Monitoring | 오류와 사용량 추적 | B단계 |
 
 ---
 
 ## 4.2 필수 비밀값
 
-| 항목 | 설명 |
-| --- | --- |
-| DATABASE_URL | DB 접속 정보 |
-| SESSION_SECRET | 세션 또는 토큰 서명 키 |
-| AI_API_KEY | AI Provider API Key |
-| STORAGE_ACCESS_KEY | Object Storage 접근 키 |
-| STORAGE_SECRET_KEY | Object Storage 비밀 키 |
-| APP_BASE_URL | 서비스 기본 URL |
+| 항목 | 설명 | 도입 단계 |
+| --- | --- | --- |
+| DATABASE_URL | Postgres 접속 정보 | B단계 |
+| SESSION_SECRET | 세션 쿠키 서명 키 | B단계 |
+| REDIS_URL | Redis 단기 스토리지 접속 정보 | B단계 |
+| MAIL_PROVIDER_API_KEY | 가입/초대 메일 발송 키 | B단계 |
+| AI_API_KEY | AI Provider API Key | D단계 |
+| STORAGE_ACCESS_KEY | Object Storage 접근 키 | C/이후 |
+| STORAGE_SECRET_KEY | Object Storage 비밀 키 | C/이후 |
+| APP_BASE_URL | 서비스 기본 URL | B단계 |
+| WORKER_DESTRUCTIVE_OPS | 정리 작업 dry-run 해제 플래그 (기본 `false`) | B단계 (실제 활성화는 C/D) |
 
 비밀값은 코드 저장소에 커밋하지 않는다.
 
@@ -154,16 +159,19 @@ Production 배포 전 Staging에서 다음을 확인한다.
 
 ## 7.1 필수 확인 항목
 
-| 항목 | 확인 내용 |
-| --- | --- |
-| 로그인 | 기존 계정 로그인 가능 |
-| 홈 | 홈 화면 접근 가능 |
-| 문서 | 문서 목록 조회와 저장 가능 |
-| AI 생성 | AI 요청과 결과 확인 가능 |
-| 검색 | 기본 검색 가능 |
-| 관리자 | Admin 화면 접근 가능 |
-| 권한 | 권한 없는 문서 접근 차단 |
-| 로그 | 오류 로그 확인 가능 |
+| 항목 | 확인 내용 | 도입 단계 |
+| --- | --- | --- |
+| 로그인 | 기존 계정 로그인 가능 | B 이후 |
+| 이메일 인증 | Staging에서 가입 메일 도착 확인 | B 이후 |
+| 홈 | 홈 화면 접근 가능 | B 이후 |
+| Redis 헬스체크 | 단기 스토리지 응답 정상 | B 이후 |
+| Cleanup Worker dry-run | 작업 프레임워크 동작 확인 | B 이후 |
+| 문서 | 문서 목록 조회와 저장 가능 | C 이후 |
+| AI 생성 | AI 요청과 결과 확인 가능 | D 이후 |
+| 검색 | 기본 검색 가능 | F 이후 |
+| 관리자 | Admin 화면 접근 가능 | B 이후 |
+| 권한 | 권한 없는 문서 접근 차단 | C 이후 |
+| 로그 | 오류 로그 확인 가능 | B 이후 |
 
 ---
 
@@ -392,6 +400,28 @@ MVP에서는 최소 일 단위 백업을 권장한다.
 * 검색어 원문은 민감 정보가 될 수 있다.
 * 로그 보존 기간을 관리한다.
 * 관리자 로그 조회 권한을 제한한다.
+
+---
+
+# 13.4 정리 작업 (Cleanup Workers)
+
+Phase A §15가 정의한 보존 정책은 백그라운드 정리 작업으로 강제한다. 작업 프레임워크는 B단계에서 프로비저닝되며, 각 작업은 도입 단계에서 등록된다.
+
+| 작업 | 주기 | 기준 | 도입 단계 |
+| --- | --- | --- | --- |
+| AI 미리보기 본문 정리 | 5분 | Redis 단기 스토리지에서 24시간 idle 또는 명시적 폐기 | D단계 |
+| AI 본문 페이로드 정리 | 매일 | `ai_request_payloads.retain_until < now` 인 row 물리 삭제 | D단계 |
+| AI 메타데이터 정리 | 매일 | `ai_requests` / `ai_results` / `ai_usage_logs` / `ai_references` 90일 초과 row 삭제 | D단계 |
+| 문서 soft-delete 정리 | 매일 | `documents.deleted_at + 30일 < now` 인 row 물리 삭제 | C단계 |
+| 세션 만료 정리 | 매시간 | `sessions.expires_at < now` 또는 `revoked_at` 채워진 row 정리 | B단계 |
+
+### 운영 원칙
+
+* B단계는 작업 프레임워크와 dry-run 모드만 준비한다. 비즈니스 작업은 C/D에서 등록한다.
+* `WORKER_DESTRUCTIVE_OPS` 환경 변수가 명시적으로 `true`인 경우에만 실제 삭제가 일어난다. 기본은 `false`(dry-run)이다.
+* 모든 정리 작업은 idempotent해야 하며, 같은 row를 두 번 처리해도 동일 결과여야 한다.
+* 작업 실행 시 시작/완료 시각, 처리 row 수, 오류를 운영 로그에 남긴다.
+* P0 알림: 정리 작업 실패가 24시간 누적되면 알림. AI 페이로드 30일 정리 누락은 보안 이슈로 처리한다.
 
 ---
 
