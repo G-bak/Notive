@@ -20,6 +20,7 @@
     "typescript": "^5.5.4"
   },
   "dependencies": {
+    "@notive/db": "workspace:*",
     "@notive/shared": "workspace:*"
   }
 }

@@ -1,20 +1,20 @@
-// Common HTTP error response helpers.
+// HTTP error response helpers.
 //
-// Maps `AuthError` (packages/auth) and `ApiError` (this app) to the
-// status + reason_code envelope per Phase A §15. The envelope shape is:
+// Step 6 split: this module owns HTTP envelope mapping ONLY. The
+// Permission Module (`@notive/permissions`) owns the decision (what to
+// deny and with which reason_code). The auth package owns its own
+// AuthError shape.
 //
-//   { "error": <code>, "reason_code": <code-or-reason> }
-//
-// `error` carries the broad code (UNAUTHORIZED / NOT_FOUND / FORBIDDEN /
-// CONFLICT / INVALID_INPUT). `reason_code` carries the specific reason
-// (last_admin_protection, EMAIL_TAKEN, ...). For NOT_FOUND, reason_code
-// is omitted by design — the client must not learn whether the resource
-// was hidden vs absent.
+// Envelope contract (Phase A §15):
+//   - { "error": <code>, "reason_code": <reason> } for FORBIDDEN /
+//     CONFLICT / INVALID_INPUT / AuthError mappings.
+//   - { "error": "NOT_FOUND" } for NOT_FOUND — `reason_code` is
+//     deliberately omitted so a hidden resource is indistinguishable
+//     from an absent one.
 
 import { AuthError } from "@notive/auth";
+import { ApiError } from "@notive/permissions";
 import { NextResponse } from "next/server";
-
-import { ApiError } from "./api-error";
 
 interface StatusReason {
   status: number;

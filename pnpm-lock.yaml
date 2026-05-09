@@ -141,6 +141,9 @@ importers:
 
   packages/permissions:
     dependencies:
+      '@notive/db':
+        specifier: workspace:*
+        version: link:../db
       '@notive/shared':
         specifier: workspace:*
         version: link:../shared
@@ -176,6 +179,9 @@ importers:
       '@notive/mail':
         specifier: workspace:*
         version: link:../../packages/mail
+      '@notive/permissions':
+        specifier: workspace:*
+        version: link:../../packages/permissions
       '@notive/shared':
         specifier: workspace:*
         version: link:../../packages/shared

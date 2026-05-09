@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { ApiError } from "../../apps/web/lib/api-error";
+import { ApiError } from "@notive/permissions";
 import {
   acceptInvitation,
   cancelInvitation,

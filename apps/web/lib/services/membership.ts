@@ -14,10 +14,8 @@
 //     of the mutation routes here.
 
 import type { Membership, PrismaClient } from "@notive/db";
+import { Errors, assertNotLastAdmin, requireAdmin, requireMembership } from "@notive/permissions";
 import { z } from "zod";
-
-import { Errors } from "../api-error";
-import { assertNotLastAdmin, requireAdmin, requireMembership } from "../permissions";
 
 export const changeRoleInputSchema = z.object({
   role: z.enum(["Viewer", "Editor", "Manager", "Admin"]),

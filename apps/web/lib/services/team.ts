@@ -11,10 +11,8 @@
 // any active member of the org.
 
 import type { PrismaClient, Team } from "@notive/db";
+import { Errors, requireAdmin, requireMembership } from "@notive/permissions";
 import { z } from "zod";
-
-import { Errors } from "../api-error";
-import { requireAdmin, requireMembership } from "../permissions";
 
 const teamNameSchema = z.string().trim().min(1).max(120);
 
