@@ -14,7 +14,7 @@ export default defineConfig({
   },
   test: {
     include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
-    exclude: ["node_modules", "dist", ".next", "tests/e2e/**"],
+    exclude: ["**/node_modules/**", "**/dist/**", "**/.next/**", "tests/e2e/**"],
     environment: "node",
     reporters: ["default"],
   },
