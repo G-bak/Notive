@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@notive/auth": "workspace:*",
     "@notive/db": "workspace:*",
+    "@notive/mail": "workspace:*",
     "@notive/shared": "workspace:*",
     "@types/node": "^20.11.30",
     "@types/pg": "^8.11.10",

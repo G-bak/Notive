@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@notive/auth": "workspace:*",
     "@notive/shared": "workspace:*",
     "@notive/permissions": "workspace:*"
   },
