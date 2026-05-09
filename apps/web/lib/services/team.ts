@@ -14,6 +14,8 @@ import type { PrismaClient, Team } from "@notive/db";
 import { Errors, requireAdmin, requireMembership } from "@notive/permissions";
 import { z } from "zod";
 
+import { Actions, recordActivity } from "../audit";
+
 const teamNameSchema = z.string().trim().min(1).max(120);
 
 export const createTeamInputSchema = z.object({
@@ -76,7 +78,7 @@ export async function createTeam(
   if (parsed.data.managerUserId) {
     await assertActiveMember(prisma, parsed.data.managerUserId, organizationId);
   }
-  return prisma.team.create({
+  const team = await prisma.team.create({
     data: {
       organizationId,
       name: parsed.data.name,
@@ -85,6 +87,15 @@ export async function createTeam(
       managerUserId: parsed.data.managerUserId ?? null,
     },
   });
+  await recordActivity(prisma, {
+    organizationId,
+    actorUserId: userId,
+    action: Actions.TEAM_CREATED,
+    targetType: "team",
+    targetId: team.id,
+    metadata: { name: team.name },
+  });
+  return team;
 }
 
 export async function updateTeam(
@@ -116,7 +127,7 @@ export async function updateTeam(
     await assertActiveMember(prisma, parsed.data.managerUserId, organizationId);
   }
 
-  return prisma.team.update({
+  const updated = await prisma.team.update({
     where: { id: teamId },
     data: {
       ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
@@ -127,6 +138,15 @@ export async function updateTeam(
         : {}),
     },
   });
+  await recordActivity(prisma, {
+    organizationId,
+    actorUserId: userId,
+    action: Actions.TEAM_UPDATED,
+    targetType: "team",
+    targetId: updated.id,
+    metadata: { name: updated.name },
+  });
+  return updated;
 }
 
 export async function archiveTeam(
@@ -146,10 +166,18 @@ export async function archiveTeam(
   if (team.status === "Archived") {
     return team;
   }
-  return prisma.team.update({
+  const archived = await prisma.team.update({
     where: { id: teamId },
     data: { status: "Archived" },
   });
+  await recordActivity(prisma, {
+    organizationId,
+    actorUserId: userId,
+    action: Actions.TEAM_ARCHIVED,
+    targetType: "team",
+    targetId: archived.id,
+  });
+  return archived;
 }
 
 async function assertTeamInOrg(
