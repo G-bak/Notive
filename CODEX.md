@@ -246,6 +246,7 @@ The default integration branch for development is `develop`.
 During verification, Codex checks:
 
 * That no commit, merge, or push was performed without an explicit user instruction for that Git operation
+* That when a verified branch has been explicitly approved for commit and push, merging that branch into `develop` and pushing `origin/develop` is treated as part of the same completion flow unless the user explicitly says to stop before merge
 * That feature branches were created off `develop`
 * That the work scope matches the branch's purpose
 * That feature changes did not land directly on `main`
