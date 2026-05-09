@@ -85,6 +85,13 @@ model User {
   status          UserStatus @default(Pending)
   emailVerifiedAt DateTime?  @map("email_verified_at")
   lastLoginAt     DateTime?  @map("last_login_at")
+  // Phase B step 4: single outstanding token per type per user.
+  // Storing only the sha256 hash; raw tokens never persisted.
+  // Resend / re-request overwrites the previous row.
+  emailVerificationTokenHash String?   @unique @map("email_verification_token_hash")
+  emailVerificationExpiresAt DateTime? @map("email_verification_expires_at")
+  passwordResetTokenHash     String?   @unique @map("password_reset_token_hash")
+  passwordResetExpiresAt     DateTime? @map("password_reset_expires_at")
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
   deletedAt       DateTime?  @map("deleted_at")

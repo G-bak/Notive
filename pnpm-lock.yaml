@@ -41,6 +41,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@notive/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@notive/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@notive/mail':
+        specifier: workspace:*
+        version: link:../../packages/mail
       '@notive/permissions':
         specifier: workspace:*
         version: link:../../packages/permissions
@@ -85,9 +94,18 @@ importers:
 
   packages/auth:
     dependencies:
+      '@notive/db':
+        specifier: workspace:*
+        version: link:../db
+      '@notive/mail':
+        specifier: workspace:*
+        version: link:../mail
       '@notive/shared':
         specifier: workspace:*
         version: link:../shared
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
     devDependencies:
       typescript:
         specifier: ^5.5.4
@@ -146,9 +164,15 @@ importers:
 
   tests/integration:
     devDependencies:
+      '@notive/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@notive/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@notive/mail':
+        specifier: workspace:*
+        version: link:../../packages/mail
       '@notive/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -179,6 +203,9 @@ importers:
 
   tests/unit:
     dependencies:
+      '@notive/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@notive/permissions':
         specifier: workspace:*
         version: link:../../packages/permissions
