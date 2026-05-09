@@ -1,502 +1,501 @@
-# 구현 계획서 v1.0
+# Implementation Plan v1.0
 
-# Notive 전체 구현 계획
-
----
-
-# 1. 문서 목적
-
-본 문서는 Notive의 전체 구현 방향을 A부터 Z까지 상위 수준에서 정의한다.
-
-이 문서는 세부 개발 작업 목록이나 상세 설계서가 아니다. 이후 각 단계별로 별도 세부 계획서를 작성하기 위한 기준 문서로 사용한다.
+# Notive Overall Implementation Plan
 
 ---
 
-# 2. 구현 목표
+# 1. Purpose
 
-Notive의 1차 구현 목표는 PRD에서 정의한 핵심 가설을 검증하는 것이다.
+This document defines Notive's overall implementation direction at a high level, from A to Z.
 
-> 회사의 업무 맥락을 반영한 AI 문서 생성이 실제 업무 문서 작성 시간을 줄이고, 문서 품질과 재사용성을 높일 수 있는가?
-
-이를 위해 초기 구현은 다음 목표에 집중한다.
-
-* 사용자가 AI로 업무 문서 초안을 생성할 수 있다.
-* 생성된 문서를 저장, 수정, 공유할 수 있다.
-* 회사 또는 부서 템플릿을 문서 생성에 반영할 수 있다.
-* 업무 기록과 기존 문서를 문서 생성 맥락으로 활용할 수 있다.
-* 기본 권한 체계 안에서 문서 접근을 제어할 수 있다.
-* 관리자가 사용자, 조직, 템플릿, 권한을 관리할 수 있다.
+It is not a detailed task list or a detailed design spec. It serves as the reference document used to write a separate detailed plan for each phase later.
 
 ---
 
-# 3. 구현 범위 요약
+# 2. Implementation Goal
 
-## 1차 구현 포함
+Notive's first-pass implementation goal is to validate the core hypothesis defined in the PRD.
 
-* Web 기반 서비스
-* 사용자 인증
-* 조직 및 팀 관리
-* 역할 기반 권한 관리
-* AI 문서 생성
-* 템플릿 기반 문서 생성
-* 문서 저장, 수정, 공유
-* 문서 검색
-* 업무 다이어리
-* 제한적 To-do 관리
-* 관리자 기능
-* 기본 사용량 및 활동 로그
+> Can AI document generation that reflects a company's work context reduce the time spent writing real work documents and improve document quality and reusability?
+
+The initial implementation focuses on the following goals:
+
+* The user can generate a draft work document with AI.
+* The generated document can be saved, edited, and shared.
+* Company or team templates can be applied to document generation.
+* Work records and existing documents can be used as context for document generation.
+* Document access can be controlled within a basic permission model.
+* Administrators can manage users, organization, templates, and permissions.
 
 ---
 
-## 1차 구현 제외
+# 3. Implementation Scope Summary
 
-* 모바일 앱
-* Desktop App
-* On-Premise/VPC 배포
-* 실시간 음성 회의록
-* 외부 협업 도구 연동
-* AI Agent 자동 실행
-* 복잡한 결재/전자서명 워크플로우
-* 고도화된 BI 대시보드
+## In scope (first pass)
+
+* Web-based service
+* User authentication
+* Organization and team management
+* Role-based permission management
+* AI document generation
+* Template-based document generation
+* Document save, edit, and share
+* Document search
+* Work diary
+* Limited to-do management
+* Administrator features
+* Basic usage and activity logs
 
 ---
 
-# 4. 구현 단계 개요
+## Out of scope (first pass)
 
-전체 구현은 A부터 H까지의 단계로 나눈다.
+* Mobile app
+* Desktop app
+* On-premise / VPC deployment
+* Real-time voice meeting transcription
+* Integrations with external collaboration tools
+* Autonomous AI agent execution
+* Complex approval / e-signature workflows
+* Advanced BI dashboards
 
-| 단계 | 이름 | 목적 |
+---
+
+# 4. Phase Overview
+
+The full implementation is split into phases A through H.
+
+| Phase | Name | Purpose |
 | --- | --- | --- |
-| A | 기반 설계 | 제품 구조, 화면 구조, 데이터 범위, 기술 방향 확정 |
-| B | 서비스 기반 구축 | 인증, 조직, 권한, 기본 레이아웃 구현 |
-| C | 문서 관리 구현 | 문서 작성, 저장, 수정, 공유, 버전 관리 구현 |
-| D | AI 문서 생성 구현 | AI 요청, 템플릿 적용, 생성 결과 편집 흐름 구현 |
-| E | 업무 맥락 기능 구현 | 업무 다이어리, To-do, 문서 생성 맥락 연결 |
-| F | 사내 지식 검색 구현 | 문서 검색, 자연어 검색, 출처 표시 구현 |
-| G | 관리자 및 운영 기능 구현 | 관리자 화면, 로그, 설정, 사용 현황 구현 |
-| H | 안정화 및 출시 준비 | 품질 점검, 보안 점검, 배포, 피드백 수집 준비 |
+| A | Foundation design | Lock product structure, screen structure, data scope, and technical direction |
+| B | Service foundation | Implement authentication, organization, permissions, base layout |
+| C | Document management | Implement document creation, save, edit, share, version management |
+| D | AI document generation | Implement AI request, template application, and generated-result editing flow |
+| E | Work-context features | Work diary, to-do, and document-generation context wiring |
+| F | Internal knowledge search | Implement document search, natural-language search, and source attribution |
+| G | Admin and operations | Admin screens, logs, settings, and usage status |
+| H | Stabilization and launch | Quality checks, security checks, deployment, feedback collection setup |
 
 ---
 
-# 5. 단계별 구현 계획
+# 5. Phase-by-phase Plan
 
-## A. 기반 설계
+## A. Foundation design
 
-### 목표
+### Goal
 
-실제 개발에 들어가기 전에 제품 구조와 구현 기준을 정한다.
+Lock down product structure and implementation standards before development begins.
 
-### 주요 작업
+### Key work
 
-* 핵심 사용자 흐름 확정
-* 1차 MVP 화면 목록 정의
-* 사용자 역할과 권한 범위 정의
-* 문서, 템플릿, 조직, 업무 기록의 데이터 범위 정의
-* AI 문서 생성 흐름 정의
-* 서비스 운영 방식과 배포 환경 방향 확정
+* Lock core user flows
+* Define the first MVP screen list
+* Define user roles and permission scope
+* Define data scope for documents, templates, organization, and work records
+* Define the AI document generation flow
+* Lock service operations approach and deployment direction
 
-### 주요 산출물
+### Key deliverables
 
-* 화면 목록
-* 사용자 흐름도
-* 권한 매트릭스
-* 주요 데이터 목록
-* MVP 백로그
-
----
-
-## B. 서비스 기반 구축
-
-### 목표
-
-사용자가 로그인하고 조직 안에서 서비스를 사용할 수 있는 기본 환경을 만든다.
-
-### 주요 작업
-
-* 프로젝트 초기 구조 구성
-* 사용자 회원가입 및 로그인
-* 조직 생성 및 초대
-* 팀/부서 구조 관리
-* 역할 기반 권한 처리
-* 기본 레이아웃 및 내비게이션 구성
-
-### 주요 산출물
-
-* 로그인 화면
-* 조직 선택/생성 흐름
-* 사용자 관리 기본 기능
-* 권한 처리 기준
-* 공통 UI 레이아웃
+* Screen list
+* User flow diagrams
+* Permission matrix
+* Key data list
+* MVP backlog
 
 ---
 
-## C. 문서 관리 구현
+## B. Service foundation
 
-### 목표
+### Goal
 
-Notive의 핵심 자산인 문서를 생성, 저장, 수정, 공유할 수 있게 한다.
+Build a baseline environment where users can log in and use the service inside an organization.
 
-### 주요 작업
+### Key work
 
-* 문서 목록
-* 문서 상세
-* 문서 작성 및 편집
-* 임시 저장
-* 문서 버전 관리
-* 문서 공유 설정
-* 문서 태그 및 분류
-* 최근 문서와 즐겨찾기
+* Initial project structure
+* User signup and login
+* Organization creation and invitations
+* Team / department structure management
+* Role-based permission handling
+* Base layout and navigation
 
-### 주요 산출물
+### Key deliverables
 
-* 문서 목록 화면
-* 문서 편집 화면
-* 문서 상세 화면
-* 공유 설정 기능
-* 버전 기록 기능
+* Login screen
+* Organization select / create flow
+* Basic user management
+* Permission handling standard
+* Shared UI layout
 
 ---
 
-## D. AI 문서 생성 구현
+## C. Document management
 
-### 목표
+### Goal
 
-사용자가 자연어 요청과 템플릿을 기반으로 업무 문서 초안을 생성할 수 있게 한다.
+Make Notive's core asset — documents — creatable, savable, editable, and shareable.
 
-### 주요 작업
+### Key work
 
-* AI 문서 생성 화면
-* 문서 유형 선택
-* 템플릿 선택
-* 자연어 요청 입력
-* 생성 결과 미리보기
-* 생성 결과 편집기로 이동
-* 생성 문서 저장
-* 생성 실패 및 재시도 처리
+* Document list
+* Document detail
+* Document authoring and editing
+* Draft / autosave
+* Document version management
+* Document share settings
+* Document tags and categorization
+* Recent documents and favorites
 
-### 주요 산출물
+### Key deliverables
 
-* AI 생성 요청 화면
-* 문서 유형별 생성 흐름
-* 템플릿 적용 기능
-* 생성 결과 편집 흐름
-* AI 요청/응답 로그 기준
-
----
-
-## E. 업무 맥락 기능 구현
-
-### 목표
-
-업무 기록을 문서 생성에 활용할 수 있는 최소한의 맥락 데이터를 만든다.
-
-### 주요 작업
-
-* 업무 다이어리 작성
-* 날짜별 업무 기록 조회
-* 프로젝트 또는 태그 연결
-* 제한적 To-do 관리
-* 완료/미완료 업무 구분
-* AI 문서 생성 시 업무 기록 선택
-
-### 주요 산출물
-
-* 업무 다이어리 화면
-* To-do 기본 화면
-* 문서 생성 시 참고 자료 선택 기능
-* 업무 기록 기반 보고서 생성 흐름
+* Document list screen
+* Document editor screen
+* Document detail screen
+* Share-settings feature
+* Version history feature
 
 ---
 
-## F. 사내 지식 검색 구현
+## D. AI document generation
 
-### 목표
+### Goal
 
-저장된 문서를 검색하고, 필요한 경우 AI 요약과 출처를 함께 제공한다.
+Let users generate work-document drafts based on natural-language requests and templates.
 
-### 주요 작업
+### Key work
 
-* 문서 제목/내용 검색
-* 작성자, 태그, 날짜 필터
-* 자연어 기반 검색
-* 검색 결과 요약
-* 검색 결과에서 원문 문서 이동
-* 사용자 권한에 따른 검색 결과 제한
+* AI document generation screen
+* Document type selection
+* Template selection
+* Natural-language request input
+* Generated-result preview
+* Hand-off from preview to editor
+* Saving the generated document
+* Generation failure and retry handling
 
-### 주요 산출물
+### Key deliverables
 
-* 통합 검색 화면
-* 검색 결과 화면
-* 문서 출처 표시
-* 권한 기반 검색 제한
-
----
-
-## G. 관리자 및 운영 기능 구현
-
-### 목표
-
-조직 관리자가 서비스를 운영할 수 있는 최소 기능을 제공한다.
-
-### 주요 작업
-
-* 사용자 초대 및 비활성화
-* 팀/부서 관리
-* 역할 및 권한 설정
-* 문서 템플릿 관리
-* 사용량 확인
-* 주요 활동 로그 조회
-* 기본 보안 설정
-
-### 주요 산출물
-
-* 관리자 대시보드
-* 사용자 관리 화면
-* 팀/부서 관리 화면
-* 템플릿 관리 화면
-* 활동 로그 화면
+* AI generation request screen
+* Generation flow per document type
+* Template application feature
+* Generated-result editing flow
+* AI request/response logging standard
 
 ---
 
-## H. 안정화 및 출시 준비
+## E. Work-context features
 
-### 목표
+### Goal
 
-초기 고객에게 제공 가능한 수준으로 품질, 보안, 운영 준비를 마친다.
+Build the minimum context data that work records can contribute to document generation.
 
-### 주요 작업
+### Key work
 
-* 주요 사용자 흐름 테스트
-* 권한 및 문서 접근 테스트
-* AI 생성 품질 점검
-* 문서 저장 및 복구 점검
-* 성능 점검
-* 오류 모니터링 준비
-* 운영 정책 정리
-* 초기 고객 피드백 수집 방식 준비
+* Work-diary authoring
+* Per-day work-record viewing
+* Project / tag linking
+* Limited to-do management
+* Done / not-done state for work
+* Selecting work records when generating an AI document
 
-### 주요 산출물
+### Key deliverables
 
-* 테스트 체크리스트
-* 출시 전 점검표
-* 운영 가이드
-* 초기 피드백 수집 양식
-* 알려진 이슈 목록
+* Work-diary screen
+* Basic to-do screen
+* Reference-material selector during document generation
+* Report-generation flow based on work records
 
 ---
 
-# 6. 주요 화면 구성
+## F. Internal knowledge search
 
-1차 구현에서 필요한 화면은 다음과 같다.
+### Goal
 
-| 영역 | 화면 |
+Make stored documents searchable and, when needed, provide AI summaries with source attribution.
+
+### Key work
+
+* Title / body search
+* Author, tag, date filters
+* Natural-language search
+* Search-result summarization
+* Jump from search result to source document
+* Restrict search results based on the user's permissions
+
+### Key deliverables
+
+* Unified search screen
+* Search results screen
+* Document source attribution
+* Permission-based search restriction
+
+---
+
+## G. Admin and operations
+
+### Goal
+
+Provide the minimum feature set for an organization administrator to operate the service.
+
+### Key work
+
+* User invite and deactivation
+* Team / department management
+* Role and permission settings
+* Document template management
+* Usage monitoring
+* Key activity log viewing
+* Basic security settings
+
+### Key deliverables
+
+* Admin dashboard
+* User management screen
+* Team / department management screen
+* Template management screen
+* Activity log screen
+
+---
+
+## H. Stabilization and launch
+
+### Goal
+
+Reach a quality, security, and operations level acceptable for delivery to early customers.
+
+### Key work
+
+* Critical user-flow testing
+* Permission and document-access testing
+* AI generation quality checks
+* Document save and recovery checks
+* Performance checks
+* Error monitoring setup
+* Operations policy
+* Early customer feedback channel setup
+
+### Key deliverables
+
+* Test checklist
+* Pre-launch checklist
+* Operations guide
+* Initial feedback collection form
+* Known-issues list
+
+---
+
+# 6. Key Screen Composition
+
+The screens needed for the first-pass implementation:
+
+| Area | Screens |
 | --- | --- |
-| 인증 | 로그인, 회원가입, 비밀번호 재설정 |
-| 온보딩 | 조직 생성, 조직 초대, 프로필 설정 |
-| 홈 | 대시보드, 최근 문서, 최근 업무 기록 |
-| AI 생성 | 문서 생성 요청, 템플릿 선택, 생성 결과 미리보기 |
-| 문서 | 문서 목록, 문서 상세, 문서 편집, 공유 설정, 버전 기록 |
-| 업무 | 업무 다이어리, To-do 목록 |
-| 검색 | 통합 검색, 검색 결과 상세 |
-| 관리자 | 사용자 관리, 팀/부서 관리, 권한 관리, 템플릿 관리, 활동 로그 |
-| 설정 | 개인 설정, 조직 설정, 보안 설정 |
+| Auth | Login, signup, password reset |
+| Onboarding | Organization create, organization invite, profile setup |
+| Home | Dashboard, recent documents, recent work records |
+| AI generation | Document generation request, template selection, generated-result preview |
+| Documents | Document list, document detail, document editor, share settings, version history |
+| Work | Work diary, to-do list |
+| Search | Unified search, search-result detail |
+| Admin | User management, team / department management, permission management, template management, activity log |
+| Settings | Personal settings, organization settings, security settings |
 
 ---
 
-# 7. 주요 데이터 영역
+# 7. Key Data Areas
 
-구현 시 관리해야 할 주요 데이터는 다음과 같다.
+The main data managed during implementation:
 
-| 데이터 | 설명 |
+| Data | Description |
 | --- | --- |
-| User | 사용자 계정 정보 |
-| Organization | 회사 또는 조직 정보 |
-| Team | 부서 또는 팀 정보 |
-| Role | 사용자 역할 |
-| Permission | 기능 및 문서 접근 권한 |
-| Document | 문서 본문과 메타데이터 |
-| DocumentVersion | 문서 수정 이력 |
-| Template | 회사 또는 부서 문서 템플릿 |
-| DiaryEntry | 업무 다이어리 기록 |
-| Todo | 업무 할 일 |
-| Project | 문서와 업무 기록을 묶는 업무 단위 |
-| SearchIndex | 검색 대상 문서 정보 |
-| ActivityLog | 사용자 주요 활동 기록 |
-| AIRequestLog | AI 요청 및 결과 기록 |
+| User | User account information |
+| Organization | Company or organization information |
+| Team | Department or team information |
+| Role | User role |
+| Permission | Feature and document access permissions |
+| Document | Document body and metadata |
+| DocumentVersion | Document revision history |
+| Template | Company or team document templates |
+| DiaryEntry | Work diary records |
+| Todo | Work items / to-dos |
+| Project | Work unit grouping documents and work records |
+| SearchIndex | Searchable document information |
+| ActivityLog | Key user activity records |
+| AIRequestLog | AI request and result records |
 
 ---
 
-# 8. 권한 설계 방향
+# 8. Permission Design Direction
 
-초기 권한은 단순하고 명확하게 시작한다.
+The initial permission model starts simple and clear.
 
-| 역할 | 주요 권한 |
+| Role | Key permissions |
 | --- | --- |
-| Viewer | 허용된 문서 조회 |
-| Editor | 문서 작성, 수정, 공유 요청 |
-| Manager | 팀 문서 관리, 공유 승인, 팀 사용자 관리 |
-| Admin | 조직 설정, 사용자 관리, 권한 관리, 로그 조회 |
+| Viewer | Read documents they are allowed to access |
+| Editor | Create, edit, and request sharing on documents |
+| Manager | Manage team documents, approve sharing, manage team users |
+| Admin | Organization settings, user management, permission management, log viewing |
 
-권한 판단은 다음 기준을 함께 사용한다.
+Permission decisions also use the following criteria:
 
-* 조직
-* 팀/부서
-* 사용자 역할
-* 문서 소유자
-* 문서 공유 범위
-* 문서별 예외 권한
-
----
-
-# 9. AI 기능 구현 방향
-
-AI 기능은 초기부터 모든 자동화를 목표로 하지 않는다. 먼저 사용자가 직접 요청하고, 결과를 확인하고, 수정해서 저장하는 흐름을 안정적으로 만든다.
-
-## 1차 AI 기능
-
-* 문서 초안 생성
-* 문서 요약
-* 문체 보정
-* 제목 및 목차 생성
-* 업무 기록 기반 보고서 생성
-* 기존 문서 기반 유사 문서 참고
+* Organization
+* Team / department
+* User role
+* Document owner
+* Document share scope
+* Per-document exception permissions
 
 ---
 
-## AI 기능 원칙
+# 9. AI Feature Direction
 
-* AI 결과는 항상 사용자가 수정할 수 있어야 한다.
-* AI가 참고한 주요 자료는 가능한 범위에서 표시한다.
-* 권한이 없는 문서는 AI 생성과 검색에 사용하지 않는다.
-* 중요한 업무 문서는 사용자의 확인 후 저장 또는 공유한다.
-* 실패, 지연, 부정확한 결과에 대한 재시도와 수정 흐름을 제공한다.
+AI features do not aim for full automation from day one. The first goal is a stable flow where the user makes a request, reviews the result, and edits/saves it.
 
----
+## First-pass AI features
 
-# 10. 기술 구성 방향
-
-상세 기술 설계는 별도 문서에서 다룬다. 본 문서에서는 구현 방향만 정의한다.
-
-## 기본 방향
-
-* 초기 제품은 Web SaaS로 구현한다.
-* 프론트엔드와 백엔드는 빠른 개발과 운영을 우선한다.
-* 데이터는 조직별로 분리 관리할 수 있는 구조를 전제로 한다.
-* 문서 파일과 본문 데이터는 안정적으로 저장하고 복구 가능해야 한다.
-* AI 기능은 일반 서비스 기능과 분리 가능한 구조로 설계한다.
-* 향후 엔터프라이즈 확장을 고려하되, 1차 구현에서는 과도한 복잡도를 피한다.
+* Document draft generation
+* Document summarization
+* Style / tone polishing
+* Title and outline generation
+* Report generation from work records
+* Reuse / reference of similar existing documents
 
 ---
 
-# 11. 품질 및 테스트 계획
+## AI feature principles
 
-## 테스트 우선순위
-
-* 로그인 및 권한 처리
-* 문서 생성, 저장, 수정, 공유
-* AI 생성 결과 저장 흐름
-* 검색 결과 권한 제한
-* 관리자 권한 변경
-* 문서 버전 복원
-* 업무 기록 기반 문서 생성
+* AI output must always be editable by the user.
+* The key sources used by the AI should be shown when feasible.
+* Documents the user has no permission to read must not be used in AI generation or search.
+* Important work documents are saved or shared only after the user confirms.
+* Failures, delays, and inaccurate output must have retry and edit flows.
 
 ---
 
-## 점검 기준
+# 10. Technical Direction
 
-* 일반 사용자가 핵심 문서 생성 흐름을 막힘 없이 완료할 수 있는가
-* 권한 없는 문서를 조회하거나 검색할 수 없는가
-* AI 생성 실패 시 사용자가 다음 행동을 이해할 수 있는가
-* 문서 저장 실패 또는 중복 저장 문제가 없는가
-* 관리자가 사용자와 권한을 실수 없이 관리할 수 있는가
+Detailed technical design lives in separate documents. This document defines direction only.
 
----
+## Baseline direction
 
-# 12. 출시 준비 계획
-
-## 출시 전 준비
-
-* 초기 고객 또는 내부 테스트 그룹 선정
-* 테스트용 조직과 사용자 계정 구성
-* 대표 문서 템플릿 준비
-* 샘플 문서 데이터 준비
-* 운영 정책 초안 작성
-* 개인정보 및 데이터 처리 안내 준비
-* 피드백 수집 채널 준비
+* The initial product is implemented as a Web SaaS.
+* Frontend and backend prioritize fast development and operations.
+* The data model assumes per-organization isolation.
+* Document files and body data must be stored reliably and recoverably.
+* AI features are designed so that they can be separated from regular service features.
+* Future enterprise expansion is considered, but the first pass avoids excessive complexity.
 
 ---
 
-## 초기 출시 기준
+# 11. Quality and Test Plan
 
-* 핵심 문서 생성 흐름이 정상 동작한다.
-* 생성된 문서를 저장, 수정, 공유할 수 있다.
-* 기본 권한에 따라 문서 접근이 제한된다.
-* 관리자가 사용자와 템플릿을 관리할 수 있다.
-* 주요 오류가 기록되고 확인 가능하다.
-* 초기 사용자 피드백을 수집할 수 있다.
+## Test priority
+
+* Login and permission handling
+* Document create, save, edit, share
+* AI generation result-saving flow
+* Permission restriction in search results
+* Admin permission changes
+* Document version restore
+* Document generation from work records
 
 ---
 
-# 13. 주요 리스크
+## Acceptance criteria
 
-| 리스크 | 설명 | 대응 방향 |
+* A general user can complete the core document-generation flow without getting stuck.
+* Documents the user has no permission for cannot be viewed or searched.
+* On AI generation failure, the user understands the next action.
+* No document save failures or duplicate saves.
+* An admin can manage users and permissions without errors.
+
+---
+
+# 12. Launch Preparation Plan
+
+## Pre-launch preparation
+
+* Pick early customers or an internal test group
+* Set up test organizations and user accounts
+* Prepare representative document templates
+* Prepare sample document data
+* Draft operations policy
+* Prepare privacy and data-handling notices
+* Prepare a feedback collection channel
+
+---
+
+## Initial launch criteria
+
+* The core document-generation flow works end-to-end.
+* Generated documents can be saved, edited, and shared.
+* Document access is restricted by basic permissions.
+* Admins can manage users and templates.
+* Major errors are logged and observable.
+* Early user feedback can be collected.
+
+---
+
+# 13. Key Risks
+
+| Risk | Description | Mitigation |
 | --- | --- | --- |
-| MVP 범위 확대 | 기능이 많아져 출시가 지연될 수 있음 | 단계별 범위 고정 |
-| AI 결과 품질 편차 | 생성 결과가 업무에 바로 쓰기 어려울 수 있음 | 템플릿, 예시, 사용자 수정 흐름 강화 |
-| 권한 오류 | 민감 문서가 잘못 노출될 수 있음 | 권한 테스트 우선순위 상향 |
-| 검색 품질 부족 | 사용자가 원하는 문서를 찾지 못할 수 있음 | 검색 피드백과 결과 개선 반복 |
-| 데이터 구조 변경 | 초기 설계 미흡 시 재작업 발생 | A단계에서 주요 데이터 범위 확정 |
-| 운영 부담 | AI 비용, 오류 대응, 고객 문의가 증가할 수 있음 | 사용량 모니터링과 운영 정책 준비 |
+| MVP scope creep | Feature growth could delay launch | Lock scope per phase |
+| AI quality variance | Output may not be directly usable for work | Strengthen templates, examples, and user-edit flow |
+| Permission errors | Sensitive documents may leak | Raise permission-test priority |
+| Search quality gaps | Users may not find what they want | Iterate on search feedback and result quality |
+| Data structure changes | Weak initial design causes rework | Lock key data scope in Phase A |
+| Operations burden | AI cost, error response, and customer questions can grow | Prepare usage monitoring and operations policy |
 
 ---
 
-# 14. 이후 세부 계획서 목록
+# 14. Subsequent Detailed Plans
 
-본 전체 구현 계획서를 기준으로 이후 다음 세부 계획서를 작성한다.
+The following detailed plans are written using this overall plan as the reference.
 
-| 문서 | 목적 |
+| Document | Purpose |
 | --- | --- |
-| A. 기반 설계 세부 계획서 | 화면, 데이터, 권한, 사용자 흐름 상세화 |
-| B. 서비스 기반 구축 세부 계획서 | 인증, 조직, 권한, 공통 레이아웃 구현 계획 |
-| C. 문서 관리 세부 계획서 | 문서 저장, 편집, 공유, 버전 관리 계획 |
-| D. AI 문서 생성 세부 계획서 | AI 생성 흐름, 템플릿, 결과 편집 계획 |
-| E. 업무 맥락 세부 계획서 | 업무 다이어리, To-do, 문서 생성 맥락 연결 계획 |
-| F. 사내 지식 검색 세부 계획서 | 검색, 요약, 출처 표시, 권한 제한 계획 |
-| G. 관리자 기능 세부 계획서 | 사용자, 조직, 템플릿, 로그 관리 계획 |
-| H. 안정화 및 출시 세부 계획서 | 테스트, 배포, 운영, 피드백 수집 계획 |
+| A. Foundation design detailed plan | Detail screens, data, permissions, and user flows |
+| B. Service foundation detailed plan | Authentication, organization, permissions, shared layout |
+| C. Document management detailed plan | Document save, edit, share, version management |
+| D. AI document generation detailed plan | AI generation flow, templates, result editing |
+| E. Work-context detailed plan | Work diary, to-do, document-generation context wiring |
+| F. Internal knowledge search detailed plan | Search, summarization, source attribution, permission limits |
+| G. Admin features detailed plan | User, organization, template, log management |
+| H. Stabilization and launch detailed plan | Tests, deployment, operations, feedback collection |
 
 ---
 
-# 15. 우선순위 요약
+# 15. Priority Summary
 
-## 반드시 먼저 구현할 것
+## Must build first
 
-* 인증
-* 조직/사용자
-* 기본 권한
-* 문서 생성
-* 문서 저장
-* AI 문서 생성
-* 템플릿
-
----
-
-## MVP 완성도를 높이는 것
-
-* 문서 공유
-* 업무 다이어리
-* 문서 검색
-* 관리자 화면
-* 활동 로그
+* Authentication
+* Organization / users
+* Basic permissions
+* Document creation
+* Document save
+* AI document generation
+* Templates
 
 ---
 
-## 이후로 미룰 것
+## Raises MVP completeness
 
-* 실시간 음성
-* 외부 서비스 연동
-* 모바일 앱
-* Desktop App
-* On-Premise
-* AI Agent 자동 실행
+* Document sharing
+* Work diary
+* Document search
+* Admin screens
+* Activity log
 
+---
+
+## Deferred for later
+
+* Real-time voice
+* External service integrations
+* Mobile app
+* Desktop app
+* On-premise
+* Autonomous AI agent execution
