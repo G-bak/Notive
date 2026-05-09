@@ -383,6 +383,31 @@ describe("membership role / team / deactivate / reactivate", () => {
 });
 
 describe("invitations", () => {
+  // §16.2 "Trying to invite into org B from a user with active
+  // membership only in org A is rejected." Cross-org invitation
+  // creation must be hidden behind NOT_FOUND, not FORBIDDEN.
+  it("Admin of org A cannot create an invitation for org B (NOT_FOUND)", async () => {
+    const a = await createActiveUser("xinv-a");
+    await createOrganization(prisma, a, { name: "OrgA" });
+    const b = await createActiveUser("xinv-b");
+    const orgB = await createOrganization(prisma, b, { name: "OrgB" });
+    const mail = new InMemoryMailAdapter();
+    // a is Admin of OrgA but NOT a member of OrgB. Trying to create an
+    // invitation against OrgB must NOT_FOUND, not FORBIDDEN.
+    await expectApiError(
+      createInvitation(
+        prisma,
+        mail,
+        { id: a.id, name: a.name },
+        orgB.id,
+        { email: "newcomer@example.test", role: "Editor" },
+        { appBaseUrl: APP_BASE_URL, ttlDays: INVITE_TTL_DAYS },
+      ),
+      "NOT_FOUND",
+    );
+    expect(mail.messages).toHaveLength(0);
+  });
+
   it("Manager cannot create invitations", async () => {
     const admin = await createActiveUser("ima");
     const org = await createOrganization(prisma, admin, { name: "InvOrg" });
