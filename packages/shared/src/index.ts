@@ -24,3 +24,13 @@ export interface ApiError {
   reasonCode?: ForbiddenReason | string;
   details?: Record<string, unknown>;
 }
+
+export {
+  EnvValidationError,
+  loadWebEnv,
+  loadWorkerEnv,
+  webEnvSchema,
+  workerEnvSchema,
+  NODE_ENVS,
+} from "./env.js";
+export type { NodeEnv, WebEnv, WorkerEnv } from "./env.js";

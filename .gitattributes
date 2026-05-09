@@ -1,0 +1,15 @@
+# Lock line endings to LF across platforms.
+# Prettier `endOfLine: lf` and Windows `autocrlf=true` conflict otherwise:
+# Git converts to CRLF on Windows checkout, then Prettier flags every
+# file as misformatted.
+* text=auto eol=lf
+
+# Binary assets — never modify.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.zip binary
