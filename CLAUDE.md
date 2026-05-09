@@ -210,7 +210,8 @@ The default integration branch for development is `develop`.
 
 * New features must branch off `develop` into a `feature/*` branch.
 * Bug fixes branch off `develop` into a `fix/*` branch.
-* After completing work, merge into `develop` and push to `origin/develop`.
+* Do not commit, merge, or push unless the user explicitly instructs that Git operation.
+* After completing work, report the changed files and verification results, then wait for an explicit user instruction before committing, merging, or pushing.
 * Do not commit directly to `main`.
 * Do not push directly to `main`.
 * `main` is updated only with an explicit deployment instruction.

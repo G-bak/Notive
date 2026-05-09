@@ -64,7 +64,7 @@ Documents and work records are internal organizational data, so screen design an
 
 ## 4.4 Simple organizational structure
 
-Initial design centers on company, team / department, user, and role. Complex structures (subsidiaries, multi-org membership, granular position hierarchies) are deferred to later phases.
+Initial design centers on company, team, user, and role (Department is unified into Team for MVP — see §15). Complex structures (subsidiaries, multi-org membership, granular position hierarchies) are deferred to later phases.
 
 ---
 
@@ -184,7 +184,7 @@ Notive's central asset is the document. Work diary, to-do, templates, search, an
 
 1. An Admin enters the admin screen.
 2. The Admin invites or deactivates users.
-3. The Admin creates teams / departments and assigns users.
+3. The Admin creates teams and assigns users.
 4. The Admin adjusts roles and permissions.
 5. The Admin creates or edits document templates.
 6. The Admin checks key activity logs.
@@ -231,7 +231,7 @@ P1 screens improve MVP quality and operability.
 | Documents | Version history | Inspect history and restore |
 | Search | Unified search | Find documents |
 | Work | To-do list | Basic work item management |
-| Admin | Team / department management | Manage organization structure |
+| Admin | Team management | Manage organization structure |
 | Admin | Permission management | Roles and access control |
 | Admin | Activity log | Audit and operations |
 | Settings | Personal settings | Personal info and defaults |
@@ -339,9 +339,10 @@ A document carries one of these share scopes:
 | --- | --- |
 | Private | Only the author |
 | Team | Members of the assigned team |
-| Department | Members of the assigned department |
 | Organization | Everyone in the organization |
 | Specific Users | Only explicitly listed users |
+
+The "Department" scope is intentionally not present. Department is unified into Team for MVP (see §15 and §16).
 
 ---
 
@@ -366,7 +367,7 @@ The MVP decisions on permissions are recorded in §15. In short:
 | --- | --- | --- |
 | User | User account | Required |
 | Organization | Company or organization | Required |
-| Team | Team or department | Required |
+| Team | Team unit (Department unified into Team for MVP) | Required |
 | Membership | A user's organization membership and role | Required |
 | Role | Role types | Required |
 | Invitation | Invite token for signup / org join | Required |
@@ -432,7 +433,7 @@ The MVP decisions on permissions are recorded in §15. In short:
 ### Locked decisions
 
 * Team and Department are unified under "Team" in MVP. The "Department" share scope is dropped (see §15).
-* A user may belong to 0 or more teams within their organization.
+* A user has exactly one primary team in MVP (stored as `memberships.team_id`; may be null for users not yet assigned). Multi-team membership is deferred (§16).
 * Team deletion: documents owned by the team transfer to the organization-default team; if none exists, to the first Admin.
 
 ---
@@ -776,7 +777,7 @@ The following decisions are locked for MVP. They are the contract Phase B builds
 | Signup mode | Self-serve signup with email verification. After signup, the user must either accept an invite or create a new organization. No discover / request-to-join flow. | Single bootstrap path keeps onboarding simple while still requiring email proof. |
 | First Admin | The user who creates a new organization automatically becomes that organization's first Admin. The system enforces "last Admin" protection: removing or downgrading the only remaining Admin is rejected. | Removes a separate approval step in MVP and protects against accidental lockout. |
 | Organization membership | One organization per user in MVP. Multi-org membership is deferred. | Avoids cross-org context-switching UI and a wider permission surface for MVP. |
-| Team structure | Single-level teams. "Department" is unified into "Team"; the Department share scope is dropped. A user may belong to 0..N teams. | Keeps the org model tractable for MVP while preserving room to add Department later. |
+| Team structure | Single-level teams. "Department" is unified into "Team"; the Department share scope is dropped. **A user belongs to exactly one primary team in MVP** (`memberships.team_id`, single value). Multi-team membership is deferred. | Matches the existing DB single-team model; "same-team" permission filters stay simple for MVP. |
 | Default document share scope | Private (author only). Available scopes in MVP: Private, Team, Organization, Specific Users. | Conservative default; users opt in to broader visibility. |
 | Admin document visibility | Admin sees metadata for all organization documents (title, owner, scope, sizes, timestamps). Admin reads body content only when the document is at Organization scope or has been shared with the Admin. Cross-organization body access is not granted in MVP. | Permissions-first principle and user trust. Compliance-style override is a post-MVP feature. |
 | Work diary visibility | Default Private. Author may share an entry to Team. AI may use an entry as context only if the requesting user has read access to it under the same rule. | Mirrors document permission semantics; protects personal notes by default. |
@@ -796,6 +797,7 @@ These items are explicitly **not** in MVP. They must not be silently smuggled in
 | Item | Reason |
 | --- | --- |
 | Multi-organization membership | Adds context-switch UI and permission complexity; revisit after first customers. |
+| Multi-team membership (one user in many teams) | Requires a `membership_teams` join table and a "primary team" concept; permission filters get more expensive. Revisit when a customer needs cross-team membership. |
 | Department concept (separate from Team) | Single-level Team covers the MVP need; Department becomes meaningful at enterprise scale. |
 | External link sharing of documents | Outside the controlled-access model in MVP. |
 | Manager share-approval workflow | Adds workflow surface; Manager shares team-scope directly in MVP. |

@@ -106,7 +106,17 @@ When permission policy, DB structure, or API contract change, the related docume
 
 ---
 
-# 6. Handling Claude's Verification Requests
+# 6. Decision Authority
+
+When a task exposes a product, security, permission, data-model, API, or implementation-scope decision that would otherwise require user judgment, Codex is responsible for making the decision unless the user explicitly reserves that decision.
+
+Codex must choose a conservative MVP default that protects permissions, organization boundaries, data integrity, and future maintainability. Claude must not be instructed to decide these items independently. Claude may surface options or implementation constraints, but Codex owns the final decision and records it in the relevant document set.
+
+If a decision affects permission policy, DB structure, API contract, AI handling, search exposure, authentication, or administrator powers, Codex must also identify the related documents that need to be updated together.
+
+---
+
+# 7. Handling Claude's Verification Requests
 
 When Claude requests verification after completing work, Codex checks:
 
@@ -127,7 +137,7 @@ Verification results are summarized in this format:
 
 ---
 
-# 7. User Response Standards
+# 8. User Response Standards
 
 When Codex replies to the user, the response must also be usable as work direction for Claude.
 
@@ -143,7 +153,7 @@ Avoid repeating relay phrases like "tell Claude to do X." The user is the arbite
 
 ---
 
-# 8. Implementation Intervention Standards
+# 9. Implementation Intervention Standards
 
 Codex's main role is design and verification, but it may modify files directly when appropriate.
 
@@ -159,7 +169,7 @@ Large-scale feature implementation is, by default, performed by Claude.
 
 ---
 
-# 9. Key Verification Points
+# 10. Key Verification Points
 
 The most important verification points in Notive are:
 
@@ -175,7 +185,7 @@ The most important verification points in Notive are:
 
 ---
 
-# 10. Collaboration Principles
+# 11. Collaboration Principles
 
 Codex and Claude work from the same set of documents.
 
@@ -189,7 +199,7 @@ Do not expand implementation scope based on guesses.
 
 ---
 
-# 11. download Folder Usage Rules
+# 12. download Folder Usage Rules
 
 Treat the `download/` folder and everything inside it as a working storage location for raw assets.
 
@@ -217,7 +227,7 @@ During review or verification, Codex checks:
 
 ---
 
-# 12. Git Branch Verification Rules
+# 13. Git Branch Verification Rules
 
 The default integration branch for development is `develop`.
 
@@ -235,6 +245,8 @@ The default integration branch for development is `develop`.
 
 During verification, Codex checks:
 
+* That no commit, merge, or push was performed without an explicit user instruction for that Git operation
+* That when a verified branch has been explicitly approved for commit and push, merging that branch into `develop` and pushing `origin/develop` is treated as part of the same completion flow unless the user explicitly says to stop before merge
 * That feature branches were created off `develop`
 * That the work scope matches the branch's purpose
 * That feature changes did not land directly on `main`

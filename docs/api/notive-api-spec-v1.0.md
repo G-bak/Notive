@@ -660,6 +660,8 @@ POST /organizations/{organizationId}/templates/{templateId}/deactivate
 
 # 9. AI 문서 생성 API
 
+본 절의 요청/응답 본문(`requestText`, `title`, `content`)은 Phase A §15와 DB 설계 §9에 따라 `ai_requests`/`ai_results` 영구 테이블에 저장되지 않는다. 미리보기/편집 단계의 본문은 세션 바운드 단기 스토리지에만 보관되며, 사용자가 §9.4로 저장해야 `documents`에 영속화된다. 미저장 24시간 또는 폐기 시 단기 스토리지에서 즉시 삭제한다.
+
 ## 9.1 AI 문서 생성 요청
 
 ```http
@@ -692,6 +694,8 @@ POST /organizations/{organizationId}/ai/generate-document
   ]
 }
 ```
+
+`requestText`는 `ai_requests`에 영구 저장되지 않는다. 사용자가 "문제 신고" opt-in 흐름을 사용한 경우에만 `ai_request_payloads`에 30일 한도로 저장된다.
 
 ### 응답
 
@@ -852,6 +856,8 @@ PATCH /organizations/{organizationId}/diary-entries/{entryId}
 
 ## 10.4 To-do 목록
 
+MVP는 개인 To-do만 지원한다(Phase A §15). 응답은 항상 요청 사용자가 생성한 항목으로 한정된다.
+
 ```http
 GET /organizations/{organizationId}/todos
 ```
@@ -860,11 +866,9 @@ GET /organizations/{organizationId}/todos
 
 | 파라미터 | 설명 |
 | --- | --- |
-| status | 상태 |
-| assigneeId | 담당자 |
+| status | 상태 (`todo`, `in_progress`, `done`) |
 | dueFrom | 마감 시작 |
 | dueTo | 마감 종료 |
-| teamId | 팀 |
 
 ---
 
@@ -876,7 +880,7 @@ POST /organizations/{organizationId}/todos
 
 ### 권한
 
-* Editor 이상
+* Editor 이상. 생성자가 곧 소유자다(개인 To-do).
 
 ### 요청
 
@@ -884,10 +888,8 @@ POST /organizations/{organizationId}/todos
 {
   "title": "제안서 초안 작성",
   "description": "A 고객사 제안서 초안 작성",
-  "assigneeUserId": "user_id",
   "dueDate": "2026-05-15",
   "priority": "Medium",
-  "visibility": "Private",
   "relatedDocumentId": "document_id"
 }
 ```
@@ -900,13 +902,19 @@ POST /organizations/{organizationId}/todos
 PATCH /organizations/{organizationId}/todos/{todoId}
 ```
 
+### 권한
+
+* 생성자 본인만.
+
 ### 요청
 
 ```json
 {
-  "status": "Done"
+  "status": "done"
 }
 ```
+
+`status` 값은 `todo`, `in_progress`, `done` 중 하나다.
 
 ---
 
