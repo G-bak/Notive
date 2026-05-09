@@ -17,6 +17,8 @@ import type { Membership, PrismaClient } from "@notive/db";
 import { Errors, assertNotLastAdmin, requireAdmin, requireMembership } from "@notive/permissions";
 import { z } from "zod";
 
+import { Actions, recordActivity } from "../audit";
+
 export const changeRoleInputSchema = z.object({
   role: z.enum(["Viewer", "Editor", "Manager", "Admin"]),
 });
@@ -73,10 +75,19 @@ export async function changeRole(
   if (target.role === "Admin" && parsed.data.role !== "Admin") {
     await assertNotLastAdmin(prisma, target);
   }
-  return prisma.membership.update({
+  const updated = await prisma.membership.update({
     where: { id: target.id },
     data: { role: parsed.data.role },
   });
+  await recordActivity(prisma, {
+    organizationId,
+    actorUserId: actingUserId,
+    action: Actions.MEMBERSHIP_ROLE_CHANGED,
+    targetType: "membership",
+    targetId: updated.id,
+    metadata: { from: target.role, to: updated.role },
+  });
+  return updated;
 }
 
 export async function changeTeam(
@@ -101,10 +112,19 @@ export async function changeTeam(
       throw Errors.notFound();
     }
   }
-  return prisma.membership.update({
+  const updated = await prisma.membership.update({
     where: { id: target.id },
     data: { teamId: parsed.data.teamId },
   });
+  await recordActivity(prisma, {
+    organizationId,
+    actorUserId: actingUserId,
+    action: Actions.MEMBERSHIP_TEAM_CHANGED,
+    targetType: "membership",
+    targetId: updated.id,
+    metadata: { from: target.teamId, to: updated.teamId },
+  });
+  return updated;
 }
 
 export async function deactivateMembership(
@@ -124,10 +144,18 @@ export async function deactivateMembership(
   if (target.role === "Admin") {
     await assertNotLastAdmin(prisma, target);
   }
-  return prisma.membership.update({
+  const updated = await prisma.membership.update({
     where: { id: target.id },
     data: { status: "Disabled" },
   });
+  await recordActivity(prisma, {
+    organizationId,
+    actorUserId: actingUserId,
+    action: Actions.MEMBERSHIP_DEACTIVATED,
+    targetType: "membership",
+    targetId: updated.id,
+  });
+  return updated;
 }
 
 export async function reactivateMembership(
@@ -155,8 +183,16 @@ export async function reactivateMembership(
   if (otherActive) {
     throw Errors.conflict("already_in_organization");
   }
-  return prisma.membership.update({
+  const updated = await prisma.membership.update({
     where: { id: target.id },
     data: { status: "Active" },
   });
+  await recordActivity(prisma, {
+    organizationId,
+    actorUserId: actingUserId,
+    action: Actions.MEMBERSHIP_REACTIVATED,
+    targetType: "membership",
+    targetId: updated.id,
+  });
+  return updated;
 }

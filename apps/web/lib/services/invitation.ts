@@ -24,6 +24,8 @@ import { type MailAdapter, buildInvitationMessage } from "@notive/mail";
 import { Errors, requireActiveUser, requireAdmin, requireMembership } from "@notive/permissions";
 import { z } from "zod";
 
+import { Actions, recordActivity } from "../audit";
+
 export const createInvitationInputSchema = z.object({
   email: z.string().trim().email().max(254),
   role: z.enum(["Viewer", "Editor", "Manager", "Admin"]),
@@ -125,6 +127,14 @@ export async function createInvitation(
       ttlDays: opts.ttlDays,
     }),
   );
+  await recordActivity(prisma, {
+    organizationId,
+    actorUserId: actingUser.id,
+    action: Actions.INVITATION_CREATED,
+    targetType: "invitation",
+    targetId: invitation.id,
+    metadata: { email, role: invitation.role },
+  });
   return { invitation, token };
 }
 
@@ -158,10 +168,19 @@ export async function cancelInvitation(
   if (invitation.status !== "Pending") {
     throw Errors.conflict("invitation_not_pending");
   }
-  return prisma.invitation.update({
+  const cancelled = await prisma.invitation.update({
     where: { id: invitation.id },
     data: { status: "Revoked" },
   });
+  await recordActivity(prisma, {
+    organizationId,
+    actorUserId: actingUserId,
+    action: Actions.INVITATION_CANCELLED,
+    targetType: "invitation",
+    targetId: cancelled.id,
+    metadata: { email: cancelled.email, role: cancelled.role },
+  });
+  return cancelled;
 }
 
 export interface AcceptInvitationResult {
@@ -213,7 +232,7 @@ export async function acceptInvitation(
     throw Errors.conflict("already_in_organization");
   }
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     // Re-check inside the transaction to close the race window.
     const fresh = await tx.invitation.findUnique({ where: { id: invitation.id } });
     if (!fresh || fresh.status !== "Pending") {
@@ -234,4 +253,16 @@ export async function acceptInvitation(
     });
     return { membership, invitation: updated };
   });
+  await recordActivity(prisma, {
+    organizationId: result.invitation.organizationId,
+    actorUserId: actingUser.id,
+    action: Actions.INVITATION_ACCEPTED,
+    targetType: "membership",
+    targetId: result.membership.id,
+    metadata: {
+      invitationId: result.invitation.id,
+      role: result.membership.role,
+    },
+  });
+  return result;
 }

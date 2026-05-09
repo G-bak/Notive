@@ -18,6 +18,8 @@ import type { Organization, PrismaClient, User } from "@notive/db";
 import { Errors, requireActiveUser, requireAdmin, requireMembership } from "@notive/permissions";
 import { z } from "zod";
 
+import { Actions, recordActivity } from "../audit";
+
 export const createOrganizationInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
   slug: z
@@ -73,9 +75,10 @@ export async function createOrganization(
     throw Errors.conflict("already_in_organization");
   }
 
+  let org: Organization;
   try {
-    return await prisma.$transaction(async (tx) => {
-      const org = await tx.organization.create({
+    org = await prisma.$transaction(async (tx) => {
+      const created = await tx.organization.create({
         data: {
           name: parsed.data.name,
           slug,
@@ -85,15 +88,15 @@ export async function createOrganization(
       await tx.membership.create({
         data: {
           userId: user.id,
-          organizationId: org.id,
+          organizationId: created.id,
           role: "Admin",
           status: "Active",
         },
       });
       await tx.organizationSetting.create({
-        data: { organizationId: org.id },
+        data: { organizationId: created.id },
       });
-      return org;
+      return created;
     });
   } catch (err) {
     if (isUniqueConstraintError(err)) {
@@ -101,6 +104,16 @@ export async function createOrganization(
     }
     throw err;
   }
+
+  await recordActivity(prisma, {
+    organizationId: org.id,
+    actorUserId: user.id,
+    action: Actions.ORGANIZATION_CREATED,
+    targetType: "organization",
+    targetId: org.id,
+    metadata: { name: org.name, slug: org.slug },
+  });
+  return org;
 }
 
 export async function getOrganization(
@@ -131,10 +144,19 @@ export async function updateOrganization(
   if (!parsed.success) {
     throw Errors.invalid(parsed.error.issues[0]?.message ?? "invalid input");
   }
-  return prisma.organization.update({
+  const updated = await prisma.organization.update({
     where: { id: organizationId },
     data: { name: parsed.data.name },
   });
+  await recordActivity(prisma, {
+    organizationId,
+    actorUserId: userId,
+    action: Actions.ORGANIZATION_UPDATED,
+    targetType: "organization",
+    targetId: organizationId,
+    metadata: { name: updated.name },
+  });
+  return updated;
 }
 
 function isUniqueConstraintError(err: unknown): boolean {
