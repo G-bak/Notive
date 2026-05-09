@@ -210,3 +210,27 @@ docs/
 6. AI 프롬프트 상세 문안 작성
 7. QA 체크리스트 세분화
 
+---
+
+# 11. Git 브랜치 전략
+
+기본 브랜치 전략은 다음과 같다.
+
+* `main`: 안정 버전과 릴리즈 기준 브랜치
+* `develop`: 개발 통합 브랜치
+* `feature/*`: 개별 기능 개발 브랜치
+* `fix/*`: 버그 수정 브랜치
+* `docs/*`: 문서 수정 브랜치
+
+개별 기능은 `develop`에서 새 브랜치를 만들어 작업하고, 완료 후 검증을 거쳐 `develop`에 머지한다.
+
+예:
+
+```text
+develop
+  -> feature/auth-foundation
+  -> feature/document-management
+  -> feature/ai-document-generation
+```
+
+`download/` 폴더와 내부 파일은 Git 업로드 대상에서 제외하며, 코드에서 직접 참조하지 않는다.
