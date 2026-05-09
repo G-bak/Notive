@@ -1,14 +1,14 @@
 # Notive Documentation
 
-Notive는 AI 기반 사내 문서 및 업무 운영 플랫폼이다.
+Notive is an AI-powered internal documentation and work operations platform.
 
-이 디렉터리는 Notive의 제품 기획, 구현 계획, 기술 설계, 운영 기준을 정리한 문서 모음이다.
+This directory holds the document set covering Notive's product planning, implementation plans, technical design, and operations standards.
 
 ---
 
-# 1. 권장 읽기 순서
+# 1. Recommended Reading Order
 
-처음 프로젝트를 파악할 때는 아래 순서로 읽는다.
+When first getting up to speed on the project, read in this order:
 
 1. `prd/notive-prd-v1.0.md`
 2. `implementation/notive-implementation-plan-v1.0.md`
@@ -24,7 +24,7 @@ Notive는 AI 기반 사내 문서 및 업무 운영 플랫폼이다.
 
 ---
 
-# 2. 문서 구조
+# 2. Document Structure
 
 ```text
 docs/
@@ -43,144 +43,144 @@ docs/
 
 ---
 
-# 3. 제품 기획 문서
+# 3. Product Planning Documents
 
 ## PRD
 
-| 문서 | 설명 |
+| Document | Description |
 | --- | --- |
-| `prd/notive-prd-v1.0.md` | Notive의 제품 목적, 타깃 사용자, 핵심 기능, MVP 범위, 성공 지표를 정의한다. |
+| `prd/notive-prd-v1.0.md` | Defines Notive's product purpose, target users, core features, MVP scope, and success metrics. |
 
-이 문서는 “무엇을 왜 만들 것인가”를 설명한다.
+This document explains "what we are building and why."
 
 ---
 
-# 4. 구현 계획 문서
+# 4. Implementation Plan Documents
 
-## 전체 구현 계획
+## Overall Implementation Plan
 
-| 문서 | 설명 |
+| Document | Description |
 | --- | --- |
-| `implementation/notive-implementation-plan-v1.0.md` | A-H 단계로 나눈 전체 구현 로드맵이다. |
+| `implementation/notive-implementation-plan-v1.0.md` | The full implementation roadmap split into phases A–H. |
 
 ---
 
-## 단계별 세부 구현 계획
+## Phase-Specific Implementation Plans
 
-| 단계 | 문서 | 설명 |
+| Phase | Document | Description |
 | --- | --- | --- |
-| A | `implementation/notive-implementation-plan-a-foundation-v1.0.md` | 기반 설계, 화면 범위, 권한, 데이터 범위, MVP 백로그를 정의한다. |
-| B | `implementation/notive-implementation-plan-b-service-foundation-v1.0.md` | 인증, 조직, 팀, 역할, 공통 레이아웃 구축 계획이다. |
-| C | `implementation/notive-implementation-plan-c-document-management-v1.0.md` | 문서 작성, 저장, 공유, 버전 관리 구현 계획이다. |
-| D | `implementation/notive-implementation-plan-d-ai-document-generation-v1.0.md` | AI 문서 생성, 템플릿, 참고 자료, 결과 저장 흐름 구현 계획이다. |
-| E | `implementation/notive-implementation-plan-e-work-context-v1.0.md` | 업무 다이어리, To-do, 업무 맥락 기반 문서 생성 구현 계획이다. |
-| F | `implementation/notive-implementation-plan-f-knowledge-search-v1.0.md` | 사내 지식 검색, AI 요약 검색, 출처 표시 구현 계획이다. |
-| G | `implementation/notive-implementation-plan-g-admin-operations-v1.0.md` | 관리자, 사용자 관리, 템플릿, 활동 로그, 사용 현황 구현 계획이다. |
-| H | `implementation/notive-implementation-plan-h-stabilization-launch-v1.0.md` | 안정화, 출시 준비, QA, 운영 준비 계획이다. |
+| A | `implementation/notive-implementation-plan-a-foundation-v1.0.md` | Defines foundational design, screen scope, permissions, data scope, and the MVP backlog. |
+| B | `implementation/notive-implementation-plan-b-service-foundation-v1.0.md` | Plan for authentication, organization, team, role, and shared layout. |
+| C | `implementation/notive-implementation-plan-c-document-management-v1.0.md` | Plan for document creation, storage, sharing, and version management. |
+| D | `implementation/notive-implementation-plan-d-ai-document-generation-v1.0.md` | Plan for AI document generation, templates, reference materials, and result-saving flow. |
+| E | `implementation/notive-implementation-plan-e-work-context-v1.0.md` | Plan for the work diary, to-dos, and work-context-driven document generation. |
+| F | `implementation/notive-implementation-plan-f-knowledge-search-v1.0.md` | Plan for internal knowledge search, AI summary search, and source attribution. |
+| G | `implementation/notive-implementation-plan-g-admin-operations-v1.0.md` | Plan for admin, user management, templates, activity logs, and usage status. |
+| H | `implementation/notive-implementation-plan-h-stabilization-launch-v1.0.md` | Plan for stabilization, launch readiness, QA, and operations readiness. |
 
 ---
 
-# 5. 기술 설계 문서
+# 5. Technical Design Documents
 
-## 아키텍처
+## Architecture
 
-| 문서 | 설명 |
+| Document | Description |
 | --- | --- |
-| `architecture/notive-technical-architecture-v1.0.md` | 전체 시스템 구성, 모듈 구조, 데이터 흐름, AI/검색/보안/배포 아키텍처를 정의한다. |
+| `architecture/notive-technical-architecture-v1.0.md` | Defines overall system composition, module structure, data flow, and AI/search/security/deployment architecture. |
 
 ## DB
 
-| 문서 | 설명 |
+| Document | Description |
 | --- | --- |
-| `database/notive-database-design-v1.0.md` | PostgreSQL 기준 테이블, 필드, 관계, 인덱스, 삭제/보존 정책을 정의한다. |
+| `database/notive-database-design-v1.0.md` | Defines tables, fields, relations, indexes, and deletion/retention policy on PostgreSQL. |
 
 ## API
 
-| 문서 | 설명 |
+| Document | Description |
 | --- | --- |
-| `api/notive-api-spec-v1.0.md` | REST API 경로, 요청/응답 구조, 권한 기준, 오류 처리 기준을 정의한다. |
+| `api/notive-api-spec-v1.0.md` | Defines REST API paths, request/response shapes, permission rules, and error handling. |
 
 ---
 
-# 6. 제품 구현 지원 문서
+# 6. Implementation Support Documents
 
-## 화면/UX
+## Screens / UX
 
-| 문서 | 설명 |
+| Document | Description |
 | --- | --- |
-| `ux/notive-screen-ux-design-v1.0.md` | 화면별 목적, 구성 요소, 상태, 오류 처리, API 연결 기준을 정의한다. |
+| `ux/notive-screen-ux-design-v1.0.md` | Defines per-screen purpose, components, states, error handling, and API binding. |
 
-## 권한 정책
+## Permission Policy
 
-| 문서 | 설명 |
+| Document | Description |
 | --- | --- |
-| `security/notive-permission-policy-v1.0.md` | 역할, 문서 권한, AI 참고 자료 권한, 검색 권한, 관리자 권한을 정의한다. |
+| `security/notive-permission-policy-v1.0.md` | Defines roles, document permissions, AI reference material permissions, search permissions, and admin permissions. |
 
-## AI 생성 정책
+## AI Generation Policy
 
-| 문서 | 설명 |
+| Document | Description |
 | --- | --- |
-| `ai/notive-ai-generation-policy-v1.0.md` | AI 문서 생성 원칙, 문서 유형별 출력 구조, 참고 자료 사용, 출처 표시, 금지 사항을 정의한다. |
+| `ai/notive-ai-generation-policy-v1.0.md` | Defines AI document generation principles, output structure per document type, reference material usage, source attribution, and prohibitions. |
 
 ---
 
-# 7. 품질 및 운영 문서
+# 7. Quality and Operations Documents
 
 ## QA
 
-| 문서 | 설명 |
+| Document | Description |
 | --- | --- |
-| `qa/notive-test-plan-v1.0.md` | 기능, 권한, AI, 검색, 관리자, 오류 테스트와 출시 차단 기준을 정의한다. |
+| `qa/notive-test-plan-v1.0.md` | Defines tests for features, permissions, AI, search, admin, errors, and the launch-blocking criteria. |
 
-## 운영
+## Operations
 
-| 문서 | 설명 |
+| Document | Description |
 | --- | --- |
-| `operations/notive-deployment-operations-guide-v1.0.md` | 환경 구성, 배포, 롤백, 모니터링, 장애 대응, 백업, 운영 업무를 정의한다. |
+| `operations/notive-deployment-operations-guide-v1.0.md` | Defines environment setup, deployment, rollback, monitoring, incident response, backup, and operations work. |
 
 ---
 
-# 8. 작업 목적별 참고 문서
+# 8. Reference Documents by Task
 
-## 제품 방향을 확인할 때
+## When checking product direction
 
 * `prd/notive-prd-v1.0.md`
 * `implementation/notive-implementation-plan-v1.0.md`
 
-## 개발 범위를 확인할 때
+## When checking development scope
 
 * `implementation/notive-implementation-plan-v1.0.md`
 * `implementation/notive-implementation-plan-a-foundation-v1.0.md`
-* 각 단계별 세부 구현 계획서
+* The phase-specific implementation plans
 
-## DB/API 구현을 시작할 때
+## When starting DB/API implementation
 
 * `architecture/notive-technical-architecture-v1.0.md`
 * `database/notive-database-design-v1.0.md`
 * `api/notive-api-spec-v1.0.md`
 * `security/notive-permission-policy-v1.0.md`
 
-## 프론트엔드 구현을 시작할 때
+## When starting frontend implementation
 
 * `ux/notive-screen-ux-design-v1.0.md`
 * `api/notive-api-spec-v1.0.md`
 * `security/notive-permission-policy-v1.0.md`
 
-## AI 기능을 구현할 때
+## When implementing AI features
 
 * `implementation/notive-implementation-plan-d-ai-document-generation-v1.0.md`
 * `ai/notive-ai-generation-policy-v1.0.md`
 * `security/notive-permission-policy-v1.0.md`
 * `api/notive-api-spec-v1.0.md`
 
-## 검색 기능을 구현할 때
+## When implementing search features
 
 * `implementation/notive-implementation-plan-f-knowledge-search-v1.0.md`
 * `database/notive-database-design-v1.0.md`
 * `api/notive-api-spec-v1.0.md`
 * `security/notive-permission-policy-v1.0.md`
 
-## 출시 전 점검할 때
+## When checking pre-launch readiness
 
 * `implementation/notive-implementation-plan-h-stabilization-launch-v1.0.md`
 * `qa/notive-test-plan-v1.0.md`
@@ -188,55 +188,55 @@ docs/
 
 ---
 
-# 9. 문서 관리 원칙
+# 9. Document Management Principles
 
-* 문서 변경 시 관련 문서의 충돌 여부를 확인한다.
-* PRD 변경은 구현 계획과 API/DB/UX 문서에 영향을 줄 수 있다.
-* 권한 정책 변경은 API, DB, UX, QA 문서에 함께 반영해야 한다.
-* AI 생성 정책 변경은 AI 테스트 케이스와 함께 갱신한다.
-* 배포/운영 정책 변경은 QA와 출시 기준에 반영한다.
-
----
-
-# 10. 다음 추천 작업
-
-현재 문서 세트 기준으로 다음 작업을 진행할 수 있다.
-
-1. 미결정 사항 정리 및 의사결정
-2. OpenAPI 스펙 작성
-3. DB 마이그레이션 초안 작성
-4. 프론트엔드 라우팅 설계
-5. Permission Module 상세 설계
-6. AI 프롬프트 상세 문안 작성
-7. QA 체크리스트 세분화
+* When changing a document, check for conflicts with related documents.
+* PRD changes can affect implementation plans and the API/DB/UX documents.
+* Permission policy changes must be reflected in API, DB, UX, and QA documents together.
+* AI generation policy changes are updated together with the AI test cases.
+* Deployment/operations policy changes are reflected in QA and the launch criteria.
 
 ---
 
-# 11. Git 브랜치 전략
+# 10. Suggested Next Tasks
 
-기본 브랜치 전략은 다음과 같다.
+Based on the current document set, the following work can be undertaken next:
 
-**배포 전까지 `main`은 건드리지 않는다. 모든 개발 머지와 푸시는 `develop` 기준으로만 진행한다.**
+1. Resolve and decide on undecided items
+2. Author the OpenAPI spec
+3. Draft the DB migration
+4. Design frontend routing
+5. Detailed design of the Permission Module
+6. Author detailed AI prompt copy
+7. Break down the QA checklist further
 
-* `main`: 안정 버전과 릴리즈 기준 브랜치
-* `develop`: 개발 통합 브랜치
-* `feature/*`: 개별 기능 개발 브랜치
-* `fix/*`: 버그 수정 브랜치
-* `docs/*`: 문서 수정 브랜치
+---
 
-개별 기능은 반드시 `develop`에서 새 브랜치를 만들어 작업하고, 완료 후 검증을 거쳐 `develop`에 머지한다.
+# 11. Git Branch Strategy
 
-작업 원칙:
+The default branch strategy:
 
-* `main`에 직접 커밋하지 않는다.
-* `main`에 직접 푸시하지 않는다.
-* 기능 구현은 `feature/*` 브랜치에서만 진행한다.
-* 버그 수정은 `fix/*` 브랜치에서 진행한다.
-* 문서 수정은 `docs/*` 브랜치 또는 단순 변경 시 `develop`에서 진행할 수 있다.
-* 작업 완료 후 `develop`에 머지하고 `origin/develop`에 푸시한다.
-* `main` 반영은 명시적인 배포 지시가 있을 때만 진행한다.
+**Until release, do not touch `main`. All development merges and pushes go to `develop` only.**
 
-예:
+* `main`: stable version and release-anchor branch
+* `develop`: development integration branch
+* `feature/*`: individual feature development branch
+* `fix/*`: bug fix branch
+* `docs/*`: documentation change branch
+
+Each feature must branch off `develop` into a new branch, and after completion be verified and merged into `develop`.
+
+Working principles:
+
+* Do not commit directly to `main`.
+* Do not push directly to `main`.
+* Feature implementation only happens on `feature/*` branches.
+* Bug fixes happen on `fix/*` branches.
+* Documentation changes happen on `docs/*` branches, or directly on `develop` for trivial edits.
+* After completing work, merge into `develop` and push to `origin/develop`.
+* `main` is updated only with an explicit deployment instruction.
+
+Example:
 
 ```text
 develop
@@ -245,4 +245,4 @@ develop
   -> feature/ai-document-generation
 ```
 
-`download/` 폴더와 내부 파일은 Git 업로드 대상에서 제외하며, 코드에서 직접 참조하지 않는다.
+The `download/` folder and its contents are excluded from Git uploads and must not be referenced directly from code.

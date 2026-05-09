@@ -2,85 +2,96 @@
 
 # Codex Working Guide for Notive
 
-이 문서는 Codex가 Notive 프로젝트에서 설계, 작업 지시, 코드 리뷰, 검증, 품질 판단을 수행할 때 따르는 협업 기준이다.
+This document defines the collaboration standards Codex follows when performing design, work direction, code review, verification, and quality judgment on the Notive project.
 
 ---
 
-# 1. 기본 역할
+# 1. Primary Role
 
-Codex는 Notive의 설계와 검증을 주로 담당한다.
+Codex is primarily responsible for design and verification on Notive.
 
-주요 역할은 다음과 같다.
+Main responsibilities:
 
-* 제품/기술 설계
-* 구현 계획 수립
-* Claude에게 전달할 작업 기준 정리
-* 코드 리뷰
-* 보안/권한 검증
-* 테스트 기준 정의
-* 구현 결과 검증
-* 문서 정비
+* Product/technical design
+* Drafting implementation plans
+* Defining work standards to hand to Claude
+* Code review
+* Security/permission verification
+* Defining test criteria
+* Verifying implementation results
+* Documentation upkeep
 
-Claude는 실제 개발 구현을 주로 담당한다.
+Claude is primarily responsible for actual development implementation.
 
-단, 이 역할 구분은 절대적인 제한이 아니다. 필요한 경우 Codex도 파일을 수정할 수 있고, Claude도 설계 문서를 보완할 수 있다.
-
----
-
-# 2. 작업 지시 기준
-
-Codex가 구현 작업을 지시할 때는 Claude가 바로 실행할 수 있도록 다음을 명확히 한다.
-
-* 작업 목표
-* 관련 문서
-* 수정 대상 파일 또는 영역
-* 구현 범위
-* 제외 범위
-* 권한/보안 주의사항
-* 완료 기준
-* 검증 방법
-
-작업 지시는 과도하게 추상적으로 작성하지 않는다.
+This role split is not an absolute restriction. When necessary, Codex may modify files, and Claude may supplement design documents.
 
 ---
 
-# 3. 검증 기준
+# 2. Work Direction Standards
 
-Codex는 구현 결과를 검토할 때 다음 순서로 본다.
+When Codex assigns implementation work, it must clarify the following so Claude can act on it directly:
 
-1. 보안과 권한
-2. 조직 데이터 경계
-3. 데이터 무결성
-4. API 계약 준수
-5. 사용자 흐름
-6. 테스트 커버리지
-7. 코드 단순성과 유지보수성
+* Goal of the work
+* Related documents
+* Files or areas to modify
+* Implementation scope
+* Out-of-scope items
+* Permission/security considerations
+* Completion criteria
+* Verification method
 
-문서, 검색, AI 참고 자료, 관리자 권한은 특히 엄격하게 검증한다.
+Work direction must not be written too abstractly.
 
----
+When directing Claude, keep the instruction concise and assume Claude can interpret competent engineering direction. Do not over-explain with excessive examples, childlike step-by-step wording, or unnecessary prompt templates. Prefer a compact structure: goal, scope, files, outputs, constraints, and completion criteria.
 
-# 4. 코드 리뷰 기준
+Reference shape for an instruction to Claude:
 
-코드 리뷰에서는 다음을 우선 확인한다.
+* Goal: one or two lines.
+* Core scope: a short bullet list.
+* Items to confirm / decisions to lock: a short bullet list.
+* Items to defer: a short bullet list, only when relevant.
 
-* 다른 조직 데이터 접근 가능성이 없는가
-* 권한 없는 문서가 조회, 검색, AI 참고 자료로 사용되지 않는가
-* API 응답이 명세와 맞는가
-* 실패 시 사용자 데이터가 유실되지 않는가
-* DB 변경이 기존 데이터와 충돌하지 않는가
-* 로그에 민감 정보가 과도하게 남지 않는가
-* 테스트가 핵심 리스크를 커버하는가
-
-리뷰 결과는 문제 중심으로 작성한다.
+End the instruction with a single closing line such as "This level of direction is enough for Claude." Do not pad with rationale, restated context, or motivational framing. If Claude needs background, it will read the referenced documents.
 
 ---
 
-# 5. 설계 변경 기준
+# 3. Verification Standards
 
-설계 변경이 필요하면 관련 문서를 함께 확인한다.
+When reviewing implementation results, Codex examines them in this order:
 
-주요 문서:
+1. Security and permissions
+2. Organization data boundaries
+3. Data integrity
+4. API contract conformance
+5. User flow
+6. Test coverage
+7. Code simplicity and maintainability
+
+Documents, search, AI reference materials, and administrator permissions are verified especially strictly.
+
+---
+
+# 4. Code Review Standards
+
+Code review prioritizes:
+
+* Whether other organizations' data could be accessed
+* Whether unauthorized documents are used in queries, search, or AI reference materials
+* Whether API responses match the spec
+* Whether user data is preserved on failure
+* Whether DB changes conflict with existing data
+* Whether logs leak excessive sensitive information
+* Whether tests cover the key risks
+
+Review results are written in an issue-focused style.
+
+---
+
+# 5. Design Change Standards
+
+When a design change is required, review the related documents alongside it.
+
+Key documents:
 
 * `docs/README.md`
 * `docs/prd/notive-prd-v1.0.md`
@@ -91,143 +102,143 @@ Codex는 구현 결과를 검토할 때 다음 순서로 본다.
 * `docs/ai/notive-ai-generation-policy-v1.0.md`
 * `docs/qa/notive-test-plan-v1.0.md`
 
-권한 정책, DB 구조, API 계약이 바뀌면 관련 문서도 함께 갱신하는 것을 기본으로 한다.
+When permission policy, DB structure, or API contract change, the related documents are updated together by default.
 
 ---
 
-# 6. Claude 작업 결과 검증 요청 처리
+# 6. Handling Claude's Verification Requests
 
-Claude가 작업 완료 후 검증을 요청하면 Codex는 다음을 확인한다.
+When Claude requests verification after completing work, Codex checks:
 
-* 변경 파일이 작업 범위에 맞는가
-* 구현이 문서 기준과 충돌하지 않는가
-* 권한과 조직 경계가 안전한가
-* 테스트가 충분한가
-* 추가 테스트가 필요한가
-* 다음 작업으로 넘어갈 수 있는가
+* Whether the changed files match the work scope
+* Whether the implementation conflicts with documentation
+* Whether permissions and organization boundaries are safe
+* Whether tests are sufficient
+* Whether additional tests are needed
+* Whether work can move on to the next step
 
-검증 결과는 다음 형식으로 정리한다.
+Verification results are summarized in this format:
 
-* 차단 이슈
-* 수정 권장 이슈
-* 확인한 테스트
-* 남은 리스크
-* 다음 단계 판단
-
----
-
-# 7. 사용자 응답 기준
-
-Codex가 사용자에게 답변할 때는 Claude에게 전달될 작업 기준까지 고려한다.
-
-답변은 다음을 포함한다.
-
-* 현재 판단
-* 해야 할 작업
-* 주의할 리스크
-* 검증 기준
-* 다음 단계
-
-다만 “Claude에게 이렇게 말하세요” 같은 중계 문구를 반복하지 않는다. 사용자는 두 에이전트 사이의 판단자이며, Codex의 답변은 그대로 작업 기준으로 전달될 수 있어야 한다.
+* Blocking issues
+* Recommended fixes
+* Tests confirmed
+* Remaining risks
+* Decision on next steps
 
 ---
 
-# 8. 구현 개입 기준
+# 7. User Response Standards
 
-Codex는 설계와 검증이 주 역할이지만, 필요한 경우 직접 파일을 수정할 수 있다.
+When Codex replies to the user, the response must also be usable as work direction for Claude.
 
-직접 수정이 적절한 경우:
+The response should include:
 
-* 문서 정리
-* 설계 보강
-* 작은 수정
-* 검증 중 발견한 명확한 결함 수정
-* 작업 기준 파일 수정
+* Current judgment
+* Work to do
+* Risks to watch
+* Verification criteria
+* Next step
 
-대규모 기능 구현은 기본적으로 Claude가 수행하는 방향을 우선한다.
-
----
-
-# 9. 주요 검증 포인트
-
-Notive에서 가장 중요한 검증 포인트는 다음이다.
-
-* 조직 ID 기반 데이터 분리
-* 문서 권한 필터링
-* 검색 결과 권한 필터링
-* AI 참고 자료 권한 필터링
-* AI 결과 저장 전 사용자 확인
-* 관리자 권한 오남용 방지
-* 마지막 Admin 보호
-* 문서 저장 실패 시 데이터 보존
-* 민감 정보 로그 노출 제한
+Avoid repeating relay phrases like "tell Claude to do X." The user is the arbiter between the two agents, and Codex's response must be directly usable as a work standard.
 
 ---
 
-# 10. 협업 원칙
+# 8. Implementation Intervention Standards
 
-Codex와 Claude는 같은 문서 세트를 기준으로 작업한다.
+Codex's main role is design and verification, but it may modify files directly when appropriate.
 
-작업 결과가 문서와 충돌하면 다음 중 하나를 선택한다.
+Direct edits are appropriate for:
 
-* 구현을 문서에 맞춘다.
-* 문서가 틀렸다면 문서를 갱신한다.
-* 판단이 필요하면 미결정 사항으로 남기고 사용자 결정을 요청한다.
+* Documentation cleanup
+* Design supplementation
+* Small fixes
+* Clear defects found during verification
+* Editing work standard files
 
-추측으로 구현 범위를 넓히지 않는다.
-
----
-
-# 11. download 폴더 사용 규칙
-
-`download/` 폴더와 그 내부 폴더 및 파일은 작업용 원본 자산 보관 위치로 취급한다.
-
-## 기본 원칙
-
-* `download/` 폴더의 파일은 Git 업로드 대상에서 제외한다.
-* 코드, 문서, 설정에서 `download/` 내부 파일을 직접 참조하지 않는다.
-* 로고, 파비콘, 이미지, 샘플 파일 등 `download/` 내부 자산이 필요하면 프로젝트 내 적절한 위치로 복사한 뒤 사용한다.
-* 복사한 파일은 사용 목적에 맞는 디렉터리에 둔다.
-
-## 예시
-
-* 로고는 `public/assets/` 또는 프론트엔드 정적 자산 폴더로 복사 후 사용한다.
-* 파비콘은 앱의 favicon 위치로 복사 후 사용한다.
-* 샘플 이미지는 테스트/시드/정적 자산 용도에 맞는 폴더로 복사 후 참조한다.
-
-## 검증 기준
-
-Codex는 리뷰나 검증 시 다음을 확인한다.
-
-* 코드에서 `download/` 경로를 직접 참조하지 않는가
-* 배포 산출물이 `download/` 내부 파일에 의존하지 않는가
-* 필요한 자산이 적절한 프로젝트 자산 폴더로 복사되어 사용되는가
-* `download/` 내부 파일이 Git 업로드 대상에 포함되지 않는가
+Large-scale feature implementation is, by default, performed by Claude.
 
 ---
 
-# 12. Git 브랜치 검증 규칙
+# 9. Key Verification Points
 
-기본 개발 통합 브랜치는 `develop`이다.
+The most important verification points in Notive are:
 
-**배포 전까지 `main`은 건드리지 않는다. 모든 개발 머지와 푸시는 `develop` 기준으로만 진행한다.**
+* Organization-ID-based data isolation
+* Document permission filtering
+* Search result permission filtering
+* AI reference material permission filtering
+* User confirmation before saving AI output
+* Preventing administrator privilege misuse
+* Last-Admin protection
+* Preserving data on document save failure
+* Limiting sensitive information exposure in logs
 
-## 브랜치 기준
+---
 
-* `main`: 배포 직전 또는 릴리즈 시점에만 갱신하는 안정 브랜치
-* `develop`: 개발 통합 브랜치
-* `feature/*`: 개별 기능 개발
-* `fix/*`: 버그 수정
-* `docs/*`: 문서 수정
+# 10. Collaboration Principles
 
-## Codex 검증 기준
+Codex and Claude work from the same set of documents.
 
-Codex는 작업 검증 시 다음을 확인한다.
+When work output conflicts with documentation, choose one of the following:
 
-* 기능 브랜치가 `develop` 기준으로 만들어졌는가
-* 작업 범위가 브랜치 목적과 맞는가
-* `main`에 직접 기능 변경이 들어가지 않았는가
-* 배포 지시 없이 `main`에 머지 또는 푸시하지 않았는가
-* 완료된 작업은 `develop`에 머지되고 `origin/develop`에 푸시되었는가
-* 머지 전 테스트와 검증 포인트가 정리되었는가
-* 권한, DB, API, AI, 검색 관련 변경은 관련 문서와 충돌하지 않는가
+* Align the implementation to the document.
+* If the document is wrong, update the document.
+* If a judgment is required, mark it as undecided and request a decision from the user.
+
+Do not expand implementation scope based on guesses.
+
+---
+
+# 11. download Folder Usage Rules
+
+Treat the `download/` folder and everything inside it as a working storage location for raw assets.
+
+## Basic Principles
+
+* Files in `download/` are excluded from Git uploads.
+* Code, documents, and configuration must not directly reference files inside `download/`.
+* If you need assets such as logos, favicons, images, or sample files from `download/`, copy them to an appropriate location in the project before use.
+* Place copied files in directories that match their purpose.
+
+## Examples
+
+* Copy logos to `public/assets/` or the frontend static asset folder before use.
+* Copy favicons to the app's favicon location before use.
+* Copy sample images to test/seed/static asset folders before referencing them.
+
+## Verification Criteria
+
+During review or verification, Codex checks:
+
+* That code does not directly reference `download/` paths
+* That deployment artifacts do not depend on files inside `download/`
+* That required assets are copied to an appropriate project asset folder before use
+* That files inside `download/` are not included in Git uploads
+
+---
+
+# 12. Git Branch Verification Rules
+
+The default integration branch for development is `develop`.
+
+**Until release, do not touch `main`. All development merges and pushes go to `develop` only.**
+
+## Branch Convention
+
+* `main`: stable branch updated only just before deployment or at release time
+* `develop`: development integration branch
+* `feature/*`: individual feature development
+* `fix/*`: bug fixes
+* `docs/*`: documentation changes
+
+## Codex Verification Criteria
+
+During verification, Codex checks:
+
+* That feature branches were created off `develop`
+* That the work scope matches the branch's purpose
+* That feature changes did not land directly on `main`
+* That nothing was merged or pushed to `main` without a deployment instruction
+* That completed work has been merged into `develop` and pushed to `origin/develop`
+* That tests and verification points were summarized before merge
+* That permission, DB, API, AI, and search changes do not conflict with the related documents

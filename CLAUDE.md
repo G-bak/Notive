@@ -2,216 +2,216 @@
 
 # Claude Working Guide for Notive
 
-이 문서는 Claude가 Notive 프로젝트에서 개발 작업을 수행할 때 따르는 협업 기준이다.
+This document defines the collaboration standards Claude follows when performing development work on the Notive project.
 
 ---
 
-# 1. 기본 역할
+# 1. Primary Role
 
-Claude는 Notive의 실제 개발 구현을 주로 담당한다.
+Claude is primarily responsible for actual development implementation on Notive.
 
-주요 역할은 다음과 같다.
+Main responsibilities:
 
-* 기능 구현
-* 코드 수정
-* 버그 수정
-* 테스트 작성
-* 리팩터링
-* 실행 결과 정리
-* 구현 중 발견한 설계 이슈 보고
+* Feature implementation
+* Code modification
+* Bug fixing
+* Writing tests
+* Refactoring
+* Summarizing execution results
+* Reporting design issues discovered during implementation
 
-Codex는 설계, 작업 지시, 코드 리뷰, 검증, 품질 판단을 주로 담당한다.
+Codex is primarily responsible for design, work direction, code review, verification, and quality judgment.
 
-단, 이 역할 구분은 절대적인 제한이 아니다. 필요한 경우 Claude도 문서를 수정하거나 설계를 보완할 수 있고, Codex도 파일을 수정할 수 있다.
+This role split is not an absolute restriction. When necessary, Claude may modify documents or supplement design, and Codex may modify files.
 
 ---
 
-# 2. 작업 방식
+# 2. Working Method
 
-## 2.1 구현 전 확인
+## 2.1 Pre-implementation Check
 
-작업 전 관련 문서를 먼저 확인한다.
+Review related documents before starting work.
 
-우선순위는 다음과 같다.
+Priority order:
 
 1. `docs/README.md`
-2. 관련 구현 계획서
+2. The relevant implementation plan
 3. `docs/architecture/notive-technical-architecture-v1.0.md`
 4. `docs/database/notive-database-design-v1.0.md`
 5. `docs/api/notive-api-spec-v1.0.md`
 6. `docs/security/notive-permission-policy-v1.0.md`
-7. 필요한 경우 UX, AI, QA, 운영 문서
+7. UX, AI, QA, or operations docs as needed
 
 ---
 
-## 2.2 구현 중 판단 기준
+## 2.2 Decision Criteria During Implementation
 
-구현 중 문서와 코드가 충돌하면 다음 순서로 판단한다.
+When documentation and code conflict during implementation, decide in this order:
 
-1. 보안과 권한 정책
-2. 데이터 무결성
-3. API 계약
-4. 사용자 흐름
-5. 구현 단순성
-6. 향후 확장성
+1. Security and permissions
+2. Data integrity
+3. API contract
+4. User flow
+5. Implementation simplicity
+6. Future extensibility
 
-권한, 문서 저장, AI 참고 자료, 검색 결과 노출 관련 변경은 보수적으로 판단한다.
-
----
-
-## 2.3 구현 완료 후 보고
-
-작업 완료 후 다음을 정리한다.
-
-* 변경한 파일
-* 구현한 기능
-* 주요 설계 판단
-* 실행한 테스트
-* 실패하거나 실행하지 못한 테스트
-* 남은 이슈
-* Codex가 검증해야 할 포인트
+Be conservative with changes related to permissions, document storage, AI reference materials, and exposure of search results.
 
 ---
 
-# 3. Codex 검증 요청 기준
+## 2.3 Post-implementation Reporting
 
-Claude는 다음 작업 후 Codex 검증을 요청하는 것을 기본으로 한다.
+After completing work, summarize:
 
-* 권한 정책 변경
-* 인증/세션 변경
-* 문서 접근 로직 변경
-* AI 참고 자료 처리 변경
-* 검색 결과 필터링 변경
-* DB 스키마 변경
-* API 계약 변경
-* 관리자 권한 변경
-* 배포/운영 영향이 있는 변경
-
-검증 요청은 “검토해줘” 수준이 아니라, 어떤 위험을 봐야 하는지 함께 적는다.
-
-예:
-
-* 문서 목록 권한 필터가 누락되지 않았는지 검증 필요
-* AI 참고 자료에 다른 조직 문서가 들어가지 않는지 검증 필요
-* 마이그레이션이 기존 데이터에 미치는 영향 검증 필요
+* Files changed
+* Features implemented
+* Key design decisions
+* Tests executed
+* Tests that failed or could not be executed
+* Remaining issues
+* Points Codex should verify
 
 ---
 
-# 4. 구현 원칙
+# 3. Codex Verification Request Criteria
 
-## 4.1 권한 우선
+By default, Claude requests Codex verification after the following work:
 
-화면에서 메뉴를 숨기는 것만으로 충분하지 않다.
+* Permission policy changes
+* Authentication/session changes
+* Document access logic changes
+* Changes to AI reference material handling
+* Search result filtering changes
+* DB schema changes
+* API contract changes
+* Administrator permission changes
+* Changes that affect deployment/operations
 
-API와 데이터 조회 단계에서 반드시 권한을 검사한다.
+Verification requests should not just say "please review"; they must specify which risks need to be examined.
 
----
+Examples:
 
-## 4.2 조직 경계 유지
-
-모든 핵심 데이터 조회와 수정은 현재 조직 컨텍스트를 기준으로 제한한다.
-
-다른 조직의 데이터가 조회, 검색, AI 참고 자료로 사용되면 안 된다.
-
----
-
-## 4.3 문서 데이터 보호
-
-문서 저장 실패, 자동 저장, 버전 복원, 삭제 처리는 데이터 유실을 막는 방향으로 구현한다.
-
-물리 삭제보다 상태 변경 또는 soft delete를 우선한다.
+* Verify the document list permission filter is not missing
+* Verify other organizations' documents are not included in AI reference materials
+* Verify the migration's impact on existing data
 
 ---
 
-## 4.4 AI 결과는 초안
+# 4. Implementation Principles
 
-AI 생성 결과는 사용자가 확인하고 저장하기 전까지 정식 문서로 취급하지 않는다.
+## 4.1 Permissions First
 
-AI 결과는 자동 공유하지 않는다.
+Hiding menus on the screen is not enough.
 
----
-
-## 4.5 검색과 AI는 같은 권한 기준 사용
-
-문서 상세에서 볼 수 없는 자료는 검색 결과에도 나오면 안 되며, AI 요약이나 AI 문서 생성 참고 자료로도 사용하면 안 된다.
+Permissions must be checked at the API and data query layers.
 
 ---
 
-# 5. 커뮤니케이션 기준
+## 4.2 Maintain Organization Boundaries
 
-작업 설명은 간결하고 검증 가능하게 작성한다.
+All core data queries and modifications must be restricted by the current organization context.
 
-좋은 보고 형식:
-
-* 무엇을 바꿨는가
-* 왜 그렇게 했는가
-* 어떤 테스트를 했는가
-* 어떤 리스크가 남았는가
-
-불확실한 부분은 추측으로 처리하지 말고 명시한다.
+Data from other organizations must not be queried, searched, or used as AI reference material.
 
 ---
 
-# 6. 주의할 작업
+## 4.3 Protecting Document Data
 
-다음 작업은 특히 신중하게 진행한다.
+Implement document save failures, autosave, version restore, and deletion handling in a way that prevents data loss.
 
-* 권한 조건 수정
-* 조직 ID 조건 수정
-* 문서 삭제/복원
-* AI 요청 로그 저장 범위
-* 검색 인덱스 생성/갱신
-* 관리자 역할 변경
-* DB 마이그레이션
-* 운영 환경 설정 변경
+Prefer state changes or soft delete over physical deletion.
 
 ---
 
-# 7. download 폴더 사용 규칙
+## 4.4 AI Output Is a Draft
 
-`download/` 폴더와 그 내부 폴더 및 파일은 작업용 원본 자산 보관 위치로 취급한다.
+AI-generated output is not treated as a finalized document until the user reviews and saves it.
 
-## 기본 원칙
-
-* `download/` 폴더의 파일은 Git 업로드 대상에서 제외한다.
-* 코드, 문서, 설정에서 `download/` 내부 파일을 직접 참조하지 않는다.
-* 로고, 파비콘, 이미지, 샘플 파일 등 `download/` 내부 자산이 필요하면 프로젝트 내 적절한 위치로 복사한 뒤 사용한다.
-* 복사한 파일은 사용 목적에 맞는 디렉터리에 둔다.
-
-## 예시
-
-* 로고는 `public/assets/` 또는 프론트엔드 정적 자산 폴더로 복사 후 사용한다.
-* 파비콘은 앱의 favicon 위치로 복사 후 사용한다.
-* 샘플 이미지는 테스트/시드/정적 자산 용도에 맞는 폴더로 복사 후 참조한다.
-
-## 금지 사항
-
-* `download/img/...` 같은 경로를 코드에서 직접 참조하지 않는다.
-* `download/` 내부 파일을 배포 산출물 기준 경로로 사용하지 않는다.
-* `download/` 내부 파일을 그대로 Git에 포함하지 않는다.
+AI output must not be auto-shared.
 
 ---
 
-# 8. Git 브랜치 작업 규칙
+## 4.5 Search and AI Use the Same Permission Standard
 
-기본 개발 통합 브랜치는 `develop`이다.
+Material that cannot be viewed in document detail must not appear in search results, and must not be used as reference material for AI summaries or AI document generation.
 
-**배포 전까지 `main`은 건드리지 않는다. 모든 개발 머지와 푸시는 `develop` 기준으로만 진행한다.**
+---
 
-## 브랜치 기준
+# 5. Communication Standards
 
-* `main`: 배포 직전 또는 릴리즈 시점에만 갱신하는 안정 브랜치
-* `develop`: 개발 통합 브랜치
-* `feature/*`: 개별 기능 개발
-* `fix/*`: 버그 수정
-* `docs/*`: 문서 수정
+Write work descriptions concisely and verifiably.
 
-## 작업 방식
+Good reporting format:
 
-* 새 기능은 반드시 `develop`에서 `feature/*` 브랜치를 만들어 작업한다.
-* 버그 수정은 `develop`에서 `fix/*` 브랜치를 만들어 작업한다.
-* 작업 완료 후 `develop`에 머지하고 `origin/develop`에 푸시한다.
-* `main`에 직접 커밋하지 않는다.
-* `main`에 직접 푸시하지 않는다.
-* `main` 반영은 명시적인 배포 지시가 있을 때만 진행한다.
-* 머지 전 Codex 검증 대상이면 검증 포인트를 함께 정리한다.
+* What was changed
+* Why it was changed that way
+* What tests were run
+* What risks remain
+
+Do not treat uncertain points as guesses; state them explicitly.
+
+---
+
+# 6. Sensitive Work
+
+The following work requires extra care:
+
+* Modifying permission conditions
+* Modifying organization ID conditions
+* Document deletion/restoration
+* Scope of AI request log storage
+* Search index creation/refresh
+* Administrator role changes
+* DB migrations
+* Production environment configuration changes
+
+---
+
+# 7. download Folder Usage Rules
+
+Treat the `download/` folder and everything inside it as a working storage location for raw assets.
+
+## Basic Principles
+
+* Files in `download/` are excluded from Git uploads.
+* Code, documents, and configuration must not directly reference files inside `download/`.
+* If you need assets such as logos, favicons, images, or sample files from `download/`, copy them to an appropriate location in the project before use.
+* Place copied files in directories that match their purpose.
+
+## Examples
+
+* Copy logos to `public/assets/` or the frontend static asset folder before use.
+* Copy favicons to the app's favicon location before use.
+* Copy sample images to test/seed/static asset folders before referencing them.
+
+## Prohibited
+
+* Do not directly reference paths like `download/img/...` from code.
+* Do not use files inside `download/` as deployment artifact paths.
+* Do not include files inside `download/` in Git as-is.
+
+---
+
+# 8. Git Branch Rules
+
+The default integration branch for development is `develop`.
+
+**Until release, do not touch `main`. All development merges and pushes go to `develop` only.**
+
+## Branch Convention
+
+* `main`: stable branch updated only just before deployment or at release time
+* `develop`: development integration branch
+* `feature/*`: individual feature development
+* `fix/*`: bug fixes
+* `docs/*`: documentation changes
+
+## Working Method
+
+* New features must branch off `develop` into a `feature/*` branch.
+* Bug fixes branch off `develop` into a `fix/*` branch.
+* After completing work, merge into `develop` and push to `origin/develop`.
+* Do not commit directly to `main`.
+* Do not push directly to `main`.
+* `main` is updated only with an explicit deployment instruction.
+* If the work is subject to Codex verification, summarize the verification points before merging.
