@@ -216,14 +216,14 @@ User Browser
 
 ---
 
-## Current Status
+## 현재 상태
 
-This repository is currently in planning and foundation setup.
+현재 저장소는 제품 기획과 기반 설계가 완료된 상태입니다.
 
-Next development steps:
+다음 개발 단계는 아래 순서로 진행합니다.
 
-1. Confirm unresolved product and technical decisions.
-2. Finalize the technology stack.
-3. Draft database migrations.
-4. Scaffold the application.
-5. Start implementation from `develop` using feature branches.
+1. 미결정 사항 정리 및 의사결정
+2. 기술 스택 확정
+3. DB 마이그레이션 초안 작성
+4. 애플리케이션 스캐폴딩
+5. `develop` 기준 기능 브랜치에서 구현 시작
