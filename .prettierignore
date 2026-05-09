@@ -1,0 +1,18 @@
+node_modules
+dist
+**/dist
+.next
+**/.next
+playwright-report
+test-results
+coverage
+pnpm-lock.yaml
+
+# Existing project markdown is not Prettier-managed at this stage.
+# Source-code Markdown (e.g., per-package READMEs) inside apps/ and
+# packages/ is still formatted.
+docs
+download
+README.md
+CLAUDE.md
+CODEX.md

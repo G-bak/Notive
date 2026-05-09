@@ -139,24 +139,81 @@ User Browser
 
 ```text
 .
-├─ docs/
-│  ├─ ai/
-│  ├─ api/
-│  ├─ architecture/
-│  ├─ assets/
-│  ├─ database/
-│  ├─ implementation/
-│  ├─ operations/
-│  ├─ prd/
-│  ├─ qa/
-│  ├─ security/
-│  └─ ux/
+├─ apps/
+│  ├─ web/                # Next.js App Router (Web + API route handlers)
+│  └─ worker/             # Node.js worker entrypoint (cron, dry-run by default in B)
+├─ packages/
+│  ├─ shared/             # Shared types, error codes, constants
+│  ├─ db/                 # Prisma client (placeholder until step 3)
+│  ├─ auth/               # signup / login / session / email (placeholder)
+│  ├─ permissions/        # Central Permission Module (type stubs in B step 1)
+│  ├─ mail/               # Mail provider adapter (placeholder)
+│  └─ redis/              # Redis client + healthcheck (placeholder)
+├─ tests/
+│  ├─ unit/               # Vitest unit tests
+│  ├─ integration/        # Vitest tests against real Postgres (added in step 3)
+│  └─ e2e/                # Playwright (placeholder smoke until step 4+)
+├─ docker/
+│  ├─ Dockerfile          # Single image; web/worker entrypoints diverge at runtime
+│  └─ docker-compose.yml  # Local dev: Postgres + Redis + mail mock
+├─ docs/                  # Product, architecture, DB, API, security, AI, ops docs
+├─ .env.example
+├─ .eslintrc.cjs
+├─ .prettierrc
+├─ playwright.config.ts
+├─ pnpm-workspace.yaml
+├─ tsconfig.base.json
+├─ vitest.config.ts
 ├─ CLAUDE.md
 ├─ CODEX.md
 └─ README.md
 ```
 
 문서 전체 인덱스와 읽는 순서는 [docs/README.md](docs/README.md)를 기준으로 합니다.
+
+---
+
+## Development
+
+### Prerequisites
+
+* Node.js LTS (>=20.11.0)
+* pnpm 9 (`corepack enable && corepack prepare pnpm@9 --activate`)
+* Docker Desktop (for local Postgres / Redis / mail mock)
+
+### Local services
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
+
+Brings up Postgres (`localhost:5432`), Redis (`localhost:6379`), and MailHog
+(SMTP `1025`, UI `8025`) matching `.env.example` defaults.
+
+### App
+
+```bash
+pnpm install
+cp .env.example .env
+pnpm dev:web        # starts Next.js on http://localhost:3000
+pnpm dev:worker     # starts the worker in dry-run mode (no jobs registered yet)
+```
+
+### Quality gates
+
+```bash
+pnpm lint           # ESLint
+pnpm format         # Prettier --check
+pnpm typecheck      # tsc --noEmit across packages
+pnpm test           # Vitest (unit + integration)
+pnpm test:e2e       # Playwright (smoke placeholder until step 4+)
+pnpm build          # builds web and worker
+```
+
+Phase B implementation order is locked in
+[`docs/implementation/notive-implementation-plan-b-service-foundation-v1.0.md`](docs/implementation/notive-implementation-plan-b-service-foundation-v1.0.md)
+§13.6. Step 1 (this scaffold) does **not** include Prisma schema, auth,
+or feature logic — those land in steps 3-8.
 
 ---
 

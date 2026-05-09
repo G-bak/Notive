@@ -1,0 +1,13 @@
+{
+  "name": "@notive/tests-unit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@notive/shared": "workspace:*",
+    "@notive/permissions": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.1"
+  }
+}
