@@ -18,6 +18,10 @@
 
 Notive MVP의 기본 데이터베이스는 PostgreSQL을 기준으로 설계한다.
 
+ORM과 마이그레이션은 **Prisma**를 사용한다(아키텍처 §5.1 잠금). Prisma 스키마(`prisma/schema.prisma`)는 본 문서의 테이블 정의를 그대로 반영한다. **본 DB 설계 문서가 단일 소스**이며, Prisma 스키마는 이 문서에서 파생된다. 두 문서가 충돌할 경우 본 문서를 기준으로 Prisma 스키마를 갱신한다.
+
+마이그레이션은 `prisma migrate`를 사용한다. 운영 배포는 `prisma migrate deploy`로 적용한다. 개발에서는 `prisma migrate dev`를 사용해도 되지만, 그 결과물(마이그레이션 SQL)은 반드시 코드 저장소에 커밋한다.
+
 ---
 
 ## 2.2 공통 원칙

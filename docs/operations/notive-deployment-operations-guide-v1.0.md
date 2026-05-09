@@ -62,34 +62,88 @@ Notive MVP 운영의 목표는 다음과 같다.
 
 ## 4.1 MVP 구성 요소
 
+스택 잠금: 아키텍처 §5.1 참조. 본 절은 그 결정을 운영 관점에서 정리한다.
+
 | 구성 요소 | 설명 | 도입 단계 |
 | --- | --- | --- |
-| Web App/API | 사용자 화면과 API 요청 처리 | B단계 |
-| PostgreSQL | 핵심 데이터 저장 (사용자/조직/문서/세션 포함) | B단계 |
-| Redis (단기 스토리지) | AI 미리보기 본문 단기 보관 (24시간 idle TTL). 세션은 Postgres에 저장하므로 Redis는 사용하지 않는다. | B단계 프로비저닝, D단계 사용 |
-| Background Worker / Cron | 보존 정책 정리 작업 (soft-delete 30일, AI 메타 90일, AI 페이로드 30일, AI 미리보기 24시간) | B단계 프레임워크, C/D 작업 등록 |
+| Web/API App | Next.js App Router (TypeScript, Node.js LTS) 단일 컨테이너. App Router의 서버 컴포넌트 + Route Handler가 API 역할을 겸한다. | B단계 |
+| Worker Process | Node.js LTS 프로세스. Web/API와 같은 이미지의 다른 entrypoint로 실행한다. cron 스케줄과 dry-run 모드 지원. | B단계 |
+| PostgreSQL | Managed Postgres. DB 설계 문서가 스키마 단일 소스이고 Prisma 마이그레이션은 여기서 파생된다. 사용자/조직/문서/세션을 모두 보관. | B단계 |
+| Redis-compatible | AI 미리보기 본문 단기 보관 (24시간 idle TTL). 세션은 Postgres에 저장하므로 Redis는 사용하지 않는다. 구체 매니지드 서비스(예: ElastiCache, Upstash, self-hosted)는 B단계 인프라 구현 시 Codex 검증 대상. | B단계 프로비저닝, D단계 사용 |
 | Object Storage | 첨부 파일 또는 원본 파일 저장 | C/이후 |
 | AI Provider | AI 문서 생성과 요약 처리 | D단계 |
 | Mail Provider | 가입 인증 메일, 초대 메일 | B단계 |
-| Logging/Monitoring | 오류와 사용량 추적 | B단계 |
+| Logging/Monitoring | 오류와 사용량 추적. 구체 도구(예: Sentry, OpenTelemetry collector)는 B단계 인프라 결정. | B단계 |
+
+### 컨테이너화 가정
+
+* Web/API와 Worker는 같은 코드 베이스에서 빌드된 단일 이미지의 다른 entrypoint를 사용한다(예: `pnpm start:web`, `pnpm start:worker`).
+* 컨테이너 런타임은 Node.js LTS. lockfile은 `pnpm-lock.yaml`을 사용한다.
+* 빌드 산출물은 `pnpm build`로 만들고 마이그레이션은 컨테이너 부팅 전에 별도 단계 또는 init 컨테이너에서 `prisma migrate deploy`로 적용한다.
 
 ---
 
-## 4.2 필수 비밀값
+## 4.2 환경 변수 / 비밀값
 
-| 항목 | 설명 | 도입 단계 |
-| --- | --- | --- |
-| DATABASE_URL | Postgres 접속 정보 | B단계 |
-| SESSION_SECRET | 세션 쿠키 서명 키 | B단계 |
-| REDIS_URL | Redis 단기 스토리지 접속 정보 | B단계 |
-| MAIL_PROVIDER_API_KEY | 가입/초대 메일 발송 키 | B단계 |
-| AI_API_KEY | AI Provider API Key | D단계 |
-| STORAGE_ACCESS_KEY | Object Storage 접근 키 | C/이후 |
-| STORAGE_SECRET_KEY | Object Storage 비밀 키 | C/이후 |
-| APP_BASE_URL | 서비스 기본 URL | B단계 |
-| WORKER_DESTRUCTIVE_OPS | 정리 작업 dry-run 해제 플래그 (기본 `false`) | B단계 (실제 활성화는 C/D) |
+다음은 Phase B 착수 시점에 필요한 전체 env var 목록이다. `.env.example`은 이 목록을 그대로 따른다(실제 값 없이 키만).
 
-비밀값은 코드 저장소에 커밋하지 않는다.
+### 런타임/앱 일반
+
+| 항목 | 설명 | 비밀 여부 | 도입 단계 |
+| --- | --- | --- | --- |
+| `NODE_ENV` | `development` / `staging` / `production` | 비밀 아님 | B단계 |
+| `APP_BASE_URL` | 서비스 기본 URL (예: `https://app.notive.example`) | 비밀 아님 | B단계 |
+| `LOG_LEVEL` | `debug` / `info` / `warn` / `error` | 비밀 아님 | B단계 |
+
+### 데이터베이스
+
+| 항목 | 설명 | 비밀 여부 | 도입 단계 |
+| --- | --- | --- | --- |
+| `DATABASE_URL` | Postgres 접속 문자열 (Prisma가 사용) | 비밀 | B단계 |
+| `DIRECT_DATABASE_URL` | Prisma migrate가 사용하는 직접 접속 (PgBouncer 우회 등) | 비밀 | B단계 |
+
+### 단기 스토리지
+
+| 항목 | 설명 | 비밀 여부 | 도입 단계 |
+| --- | --- | --- | --- |
+| `REDIS_URL` | Redis-compatible 접속 문자열 | 비밀 | B단계 |
+
+### 인증 / 세션
+
+| 항목 | 설명 | 비밀 여부 | 도입 단계 |
+| --- | --- | --- | --- |
+| `SESSION_SECRET` | 세션 쿠키 서명 키 (32바이트 이상 랜덤) | 비밀 | B단계 |
+| `SESSION_IDLE_TTL_DAYS` | 세션 idle 만료 (기본 14) | 비밀 아님 | B단계 |
+| `SESSION_ABSOLUTE_TTL_DAYS` | 세션 절대 만료 (기본 30) | 비밀 아님 | B단계 |
+| `PASSWORD_RESET_TTL_MINUTES` | 비밀번호 재설정 토큰 만료 (기본 60) | 비밀 아님 | B단계 |
+
+### 메일
+
+| 항목 | 설명 | 비밀 여부 | 도입 단계 |
+| --- | --- | --- | --- |
+| `MAIL_PROVIDER_API_KEY` | 가입/초대 메일 발송 키 | 비밀 | B단계 |
+| `MAIL_FROM_ADDRESS` | 발신 주소 | 비밀 아님 | B단계 |
+| `MAIL_VERIFY_TTL_HOURS` | 가입 인증 링크 만료 (기본 24) | 비밀 아님 | B단계 |
+| `MAIL_INVITE_TTL_DAYS` | 초대 링크 만료 (기본 7) | 비밀 아님 | B단계 |
+
+### 워커
+
+| 항목 | 설명 | 비밀 여부 | 도입 단계 |
+| --- | --- | --- | --- |
+| `WORKER_DESTRUCTIVE_OPS` | 정리 작업 dry-run 해제 플래그 (기본 `false`) | 비밀 아님 | B단계 (실제 활성화는 C/D) |
+| `WORKER_RUN_INTERVAL_OVERRIDE` | 디버깅용 cron 주기 오버라이드 (운영에서는 비워둠) | 비밀 아님 | B단계 |
+
+### 후속 단계
+
+| 항목 | 설명 | 비밀 여부 | 도입 단계 |
+| --- | --- | --- | --- |
+| `STORAGE_ACCESS_KEY` | Object Storage 접근 키 | 비밀 | C/이후 |
+| `STORAGE_SECRET_KEY` | Object Storage 비밀 키 | 비밀 | C/이후 |
+| `STORAGE_BUCKET` | Object Storage 버킷 이름 | 비밀 아님 | C/이후 |
+| `AI_API_KEY` | AI Provider API Key | 비밀 | D단계 |
+| `AI_API_BASE_URL` | AI Provider 엔드포인트 | 비밀 아님 | D단계 |
+
+비밀값은 코드 저장소에 커밋하지 않는다. `.env.example`은 키만 포함한다.
 
 ---
 

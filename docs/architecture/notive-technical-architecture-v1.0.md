@@ -122,36 +122,43 @@ User Browser
 
 # 5. 권장 기술 구성
 
-## 5.1 초기 MVP 권장안
+## 5.1 MVP 기술 스택 (Codex 결정 / 잠금)
 
-| 영역 | 권장 방향 |
+다음 스택은 Phase B 착수 전에 잠긴다. 변경하려면 Codex 재검증이 필요하다.
+
+| 영역 | 결정 |
 | --- | --- |
-| Frontend | React 기반 Web App |
-| Backend | Web App과 가까운 API Layer로 시작 |
-| Database | PostgreSQL |
-| Short-term Store | **Redis** (Codex 결정). B단계 프로비저닝, D단계 AI 미리보기 본문 보관에 사용. 세션은 Postgres 저장이 기본이며 Redis는 사용하지 않는다. |
-| Background Worker / Cron | B단계 프로비저닝. C단계 문서 soft-delete 정리, D단계 AI 본문/페이로드 정리에 사용. |
+| Web Framework | **Next.js App Router** |
+| Language | **TypeScript** |
+| Runtime | **Node.js LTS** |
+| Database | **PostgreSQL** (managed) |
+| ORM / Migration | **Prisma** (스키마 정의 + 마이그레이션 + 클라이언트 생성) |
+| Session Storage | **PostgreSQL-backed server session** (`sessions` 테이블; 토큰은 해시 보관) |
+| Short-term Store | **Redis-compatible service** (B단계 프로비저닝, D단계 AI 미리보기 본문 보관에 사용; 세션은 Postgres에 저장하므로 Redis 미사용) |
+| Background Jobs | **Worker / cron entrypoint** (B단계는 dry-run 기본; C/D에서 비즈니스 작업 등록) |
+| Package Manager | **pnpm** |
+| Test Baseline | **Vitest** (단위/통합) + **Playwright** (E2E) |
+| Lint / Format | **ESLint + Prettier** |
 | Object Storage | S3 호환 스토리지 (C/이후) |
 | AI | 외부 AI API 연동 (D단계) |
 | Search | 초기에는 DB 검색 + 확장 가능한 검색 인덱스 구조 (F단계) |
-| Deployment | Cloud 기반 배포 |
-| Monitoring | 오류 로그와 요청 로그부터 시작 |
+| Deployment | **Container-friendly single image with Web/API and Worker entrypoints + managed PostgreSQL + Redis-compatible store** (구체 클라우드/매니지드 서비스는 B단계 인프라 구현 시 Codex 검증 대상) |
+| Monitoring | 오류 로그와 요청 로그부터 시작 (구체 도구는 B단계 인프라 결정) |
 | Auth | 이메일+비밀번호, 이메일 인증 필수, 서버 세션 (Phase A §15 / Phase B §10) |
 
 ---
 
 ## 5.2 기술 선택 기준
 
-상세 기술 스택은 별도 구현 설계에서 확정하되, 다음 기준을 따른다.
+§5.1 스택은 다음 기준에 따라 잠겼다.
 
-* 팀의 개발 속도
-* 유지보수 난이도
-* 인증과 권한 구현의 안정성
-* PostgreSQL과의 궁합
-* AI API 연동 편의성
-* 배포와 운영 난이도
-* 향후 워커/서비스 분리 가능성
-* 비용 예측 가능성
+* 팀의 개발 속도 — Next.js App Router + TypeScript는 풀스택 단일 레포 + RSC를 통한 빠른 개발이 가능
+* 유지보수 난이도 — Prisma 스키마는 DB 설계 §5–§12와 1:1 매핑이 가능
+* 인증과 권한 구현의 안정성 — 서버 세션을 Postgres에 두면 감사 로그와 일관성을 유지
+* PostgreSQL 궁합 — Prisma의 강점 영역
+* 워커 분리 가능성 — Next.js 앱과 별도 Node.js 워커 프로세스로 분리 가능 (container-friendly)
+* 비용 예측 가능성 — managed Postgres + Redis-compatible는 사용량 기반 단가가 명확
+* 테스트 자동화 — Vitest는 단위/통합, Playwright는 인증 흐름과 E2E 권한 테스트에 적합
 
 ---
 
