@@ -62,6 +62,7 @@ import { z } from "zod";
 
 import { Actions, recordActivity } from "../audit";
 import { createDocumentVersionInTx } from "./document-version";
+import { recordDocumentView } from "./document-view-history";
 
 // ---------------------------------------------------------------------
 // Input schemas
@@ -337,6 +338,13 @@ export async function getDocument(
 
   const ctx = contextFromRow(row);
   const permission = requireDocumentView(actor, ctx, row.shares);
+
+  // Phase C step 6: record a view event for "recent documents"
+  // tracking. Only successful detail reads count — listDocuments
+  // and version preview / share read do not record views. The
+  // helper is best-effort; a failure to insert never bubbles up
+  // and never breaks the user-facing GET.
+  await recordDocumentView(prisma, userId, organizationId, documentId);
 
   const { shares: _ignored, ...doc } = row;
   void _ignored;
