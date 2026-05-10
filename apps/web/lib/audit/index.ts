@@ -42,11 +42,22 @@ export const Actions = {
   INVITATION_CREATED: "invitation.created",
   INVITATION_CANCELLED: "invitation.cancelled",
   INVITATION_ACCEPTED: "invitation.accepted",
+
+  // Phase C step 3 — document mutations.
+  DOCUMENT_CREATED: "document.created",
+  DOCUMENT_UPDATED: "document.updated",
+  DOCUMENT_DELETED: "document.deleted",
 } as const;
 
 export type AuditAction = (typeof Actions)[keyof typeof Actions];
 
-export type AuditTargetType = "user" | "organization" | "team" | "membership" | "invitation";
+export type AuditTargetType =
+  | "user"
+  | "organization"
+  | "team"
+  | "membership"
+  | "invitation"
+  | "document";
 
 export interface AuditEvent {
   organizationId: string;
