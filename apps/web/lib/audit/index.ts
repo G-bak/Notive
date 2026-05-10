@@ -50,6 +50,12 @@ export const Actions = {
 
   // Phase C step 4 — document sharing API.
   DOCUMENT_SHARES_UPDATED: "document.shares_updated",
+
+  // Phase C step 5 — document version restore. Regular update version
+  // creation reuses DOCUMENT_UPDATED; restore is recorded as its own
+  // action so audit consumers can distinguish "user typed in editor"
+  // from "user explicitly reverted to an earlier snapshot".
+  DOCUMENT_VERSION_RESTORED: "document.version_restored",
 } as const;
 
 export type AuditAction = (typeof Actions)[keyof typeof Actions];
