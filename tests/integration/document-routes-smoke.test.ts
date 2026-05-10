@@ -54,10 +54,14 @@ vi.mock("@/lib/session", () => ({
   },
 }));
 
-import { createDocument } from "../../apps/web/lib/services/document";
+import { createDocument, updateDocument } from "../../apps/web/lib/services/document";
 import { createTag } from "../../apps/web/lib/services/document-tag";
 import * as docsRoute from "../../apps/web/app/api/organizations/[id]/documents/route";
 import * as docByIdRoute from "../../apps/web/app/api/organizations/[id]/documents/[documentId]/route";
+import * as sharesRoute from "../../apps/web/app/api/organizations/[id]/documents/[documentId]/shares/route";
+import * as versionsListRoute from "../../apps/web/app/api/organizations/[id]/documents/[documentId]/versions/route";
+import * as versionPreviewRoute from "../../apps/web/app/api/organizations/[id]/documents/[documentId]/versions/[versionId]/route";
+import * as versionRestoreRoute from "../../apps/web/app/api/organizations/[id]/documents/[documentId]/versions/[versionId]/restore/route";
 import * as tagsRoute from "../../apps/web/app/api/organizations/[id]/documents/tags/route";
 import * as tagDeleteRoute from "../../apps/web/app/api/organizations/[id]/documents/tags/[tagId]/route";
 import * as docTagsPutRoute from "../../apps/web/app/api/organizations/[id]/documents/[documentId]/tags/route";
@@ -629,6 +633,320 @@ describe("DELETE /organizations/[id]/documents/[documentId]", () => {
       `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}`,
       { id: s.orgId, documentId: doc.id },
       { method: "DELETE" },
+    );
+    expect(r.status).toBe(404);
+    expect(r.body).toEqual({ error: "NOT_FOUND" });
+  });
+});
+
+// ---------------------------------------------------------------------
+// shares + versions routes — Phase C step 9
+//   GET    /organizations/[id]/documents/[documentId]/shares
+//   PUT    /organizations/[id]/documents/[documentId]/shares
+//   GET    /organizations/[id]/documents/[documentId]/versions
+//   GET    /organizations/[id]/documents/[documentId]/versions/[versionId]
+//   POST   /organizations/[id]/documents/[documentId]/versions/[versionId]/restore
+//
+// Smoke matrix (Codex Phase C step 9 directive):
+//   - shares routes: Manage required (both GET and PUT)
+//   - versions list / preview: View required
+//   - restore: Edit required (NOT Manage — verified against
+//     document-version.ts:295)
+//   - NOT_FOUND envelope must omit reason_code
+//   - restore writes a DOCUMENT_VERSION_RESTORED activity_logs row
+// ---------------------------------------------------------------------
+
+describe("GET /organizations/[id]/documents/[documentId]/shares", () => {
+  it("happy path: owner Editor returns 200 with empty shares array", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "shares-owner",
+      documentType: "general",
+      visibility: "Private",
+    });
+    const r = await call(
+      sharesRoute.GET,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/shares`,
+      { id: s.orgId, documentId: doc.id },
+    );
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ shares: [] });
+  });
+
+  it("view-only actor returns 403 FORBIDDEN(document_manage_not_allowed)", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "shares-view-only",
+      documentType: "general",
+      visibility: "Organization",
+    });
+    hoisted.state.user = s.editorB; // View only via org visibility
+    const r = await call(
+      sharesRoute.GET,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/shares`,
+      { id: s.orgId, documentId: doc.id },
+    );
+    expect(r.status).toBe(403);
+    expect(r.body).toMatchObject({
+      error: "FORBIDDEN",
+      reason_code: "document_manage_not_allowed",
+    });
+  });
+
+  it("no-view actor returns 404 NOT_FOUND envelope without reason_code", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "shares-private",
+      documentType: "general",
+      visibility: "Private",
+    });
+    hoisted.state.user = s.editorB;
+    const r = await call(
+      sharesRoute.GET,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/shares`,
+      { id: s.orgId, documentId: doc.id },
+    );
+    expect(r.status).toBe(404);
+    expect(r.body).toEqual({ error: "NOT_FOUND" });
+  });
+});
+
+describe("PUT /organizations/[id]/documents/[documentId]/shares", () => {
+  it("happy path: owner Editor adds a User share, returns 200 with new entry", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "shares-replace",
+      documentType: "general",
+      visibility: "Private",
+    });
+    const r = await call(
+      sharesRoute.PUT,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/shares`,
+      { id: s.orgId, documentId: doc.id },
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          shares: [{ targetType: "User", targetId: s.editorB.id, permission: "Edit" }],
+        }),
+      },
+    );
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({
+      shares: expect.arrayContaining([
+        expect.objectContaining({
+          targetType: "User",
+          targetId: s.editorB.id,
+          permission: "Edit",
+        }),
+      ]),
+    });
+  });
+
+  it("view-only actor returns 403 FORBIDDEN(document_manage_not_allowed)", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "shares-put-guarded",
+      documentType: "general",
+      visibility: "Organization",
+    });
+    hoisted.state.user = s.editorB;
+    const r = await call(
+      sharesRoute.PUT,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/shares`,
+      { id: s.orgId, documentId: doc.id },
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          shares: [{ targetType: "User", targetId: s.editorB.id, permission: "Edit" }],
+        }),
+      },
+    );
+    expect(r.status).toBe(403);
+    expect(r.body).toMatchObject({
+      error: "FORBIDDEN",
+      reason_code: "document_manage_not_allowed",
+    });
+  });
+});
+
+describe("GET /organizations/[id]/documents/[documentId]/versions", () => {
+  it("happy path: owner returns 200 with version 1 in the list", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "version-list",
+      documentType: "general",
+      visibility: "Private",
+    });
+    const r = await call(
+      versionsListRoute.GET,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/versions`,
+      { id: s.orgId, documentId: doc.id },
+    );
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({
+      versions: expect.arrayContaining([expect.objectContaining({ versionNumber: 1 })]),
+    });
+  });
+
+  it("no-view actor returns 404 NOT_FOUND envelope without reason_code", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "version-private",
+      documentType: "general",
+      visibility: "Private",
+    });
+    hoisted.state.user = s.editorB;
+    const r = await call(
+      versionsListRoute.GET,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/versions`,
+      { id: s.orgId, documentId: doc.id },
+    );
+    expect(r.status).toBe(404);
+    expect(r.body).toEqual({ error: "NOT_FOUND" });
+  });
+});
+
+describe("GET /organizations/[id]/documents/[documentId]/versions/[versionId]", () => {
+  it("happy path: owner returns 200 with version snapshot", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "version-preview",
+      content: "v1-body",
+      documentType: "general",
+      visibility: "Private",
+    });
+    const v = await prisma.documentVersion.findFirstOrThrow({
+      where: { documentId: doc.id, versionNumber: 1 },
+    });
+    const r = await call(
+      versionPreviewRoute.GET,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/versions/${v.id}`,
+      { id: s.orgId, documentId: doc.id, versionId: v.id },
+    );
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({
+      id: v.id,
+      versionNumber: 1,
+      titleSnapshot: "version-preview",
+      contentSnapshot: "v1-body",
+    });
+  });
+
+  it("no-view actor returns 404 NOT_FOUND envelope without reason_code", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "version-preview-private",
+      documentType: "general",
+      visibility: "Private",
+    });
+    const v = await prisma.documentVersion.findFirstOrThrow({
+      where: { documentId: doc.id, versionNumber: 1 },
+    });
+    hoisted.state.user = s.editorB;
+    const r = await call(
+      versionPreviewRoute.GET,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/versions/${v.id}`,
+      { id: s.orgId, documentId: doc.id, versionId: v.id },
+    );
+    expect(r.status).toBe(404);
+    expect(r.body).toEqual({ error: "NOT_FOUND" });
+  });
+});
+
+describe("POST /organizations/[id]/documents/[documentId]/versions/[versionId]/restore", () => {
+  it("happy path: owner restores v1 from v2 doc, returns 200 and writes audit row", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "restore-target",
+      content: "v1-body",
+      documentType: "general",
+      visibility: "Private",
+    });
+    await updateDocument(prisma, s.editor.id, s.orgId, doc.id, {
+      title: "restore-target-v2",
+      content: "v2-body",
+    });
+    const v1 = await prisma.documentVersion.findFirstOrThrow({
+      where: { documentId: doc.id, versionNumber: 1 },
+    });
+    const r = await call(
+      versionRestoreRoute.POST,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/versions/${v1.id}/restore`,
+      { id: s.orgId, documentId: doc.id, versionId: v1.id },
+      { method: "POST" },
+    );
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({
+      document: { id: doc.id, title: "restore-target", content: "v1-body" },
+      newVersion: { versionNumber: 3 },
+    });
+    const audit = await prisma.activityLog.findFirst({
+      where: {
+        organizationId: s.orgId,
+        action: "document.version_restored",
+        targetId: doc.id,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(audit).not.toBeNull();
+    expect(audit?.metadata).toMatchObject({
+      restoredFromVersionNumber: 1,
+      newVersionNumber: 3,
+    });
+  });
+
+  it("view-only actor returns 403 FORBIDDEN(document_edit_not_allowed)", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "restore-view-only",
+      documentType: "general",
+      visibility: "Organization",
+    });
+    const v1 = await prisma.documentVersion.findFirstOrThrow({
+      where: { documentId: doc.id, versionNumber: 1 },
+    });
+    hoisted.state.user = s.editorB;
+    const r = await call(
+      versionRestoreRoute.POST,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/versions/${v1.id}/restore`,
+      { id: s.orgId, documentId: doc.id, versionId: v1.id },
+      { method: "POST" },
+    );
+    expect(r.status).toBe(403);
+    expect(r.body).toMatchObject({
+      error: "FORBIDDEN",
+      reason_code: "document_edit_not_allowed",
+    });
+  });
+
+  it("no-view actor returns 404 NOT_FOUND envelope without reason_code", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "restore-private",
+      documentType: "general",
+      visibility: "Private",
+    });
+    const v1 = await prisma.documentVersion.findFirstOrThrow({
+      where: { documentId: doc.id, versionNumber: 1 },
+    });
+    hoisted.state.user = s.editorB;
+    const r = await call(
+      versionRestoreRoute.POST,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/versions/${v1.id}/restore`,
+      { id: s.orgId, documentId: doc.id, versionId: v1.id },
+      { method: "POST" },
     );
     expect(r.status).toBe(404);
     expect(r.body).toEqual({ error: "NOT_FOUND" });
