@@ -40,6 +40,10 @@ export type KnownReasonCode =
   // FORBIDDEN — Phase C document create. Used when the actor's role is
   // Viewer (Phase C plan §8.2: Viewer cannot create documents).
   | "document_create_not_allowed"
+  // FORBIDDEN — Phase C step 7 tag vocabulary. createTag rejects
+  // Viewer; deleteTag rejects Editor (Manager+ only).
+  | "tag_create_not_allowed"
+  | "tag_delete_not_allowed"
   // CONFLICT
   | "already_in_organization"
   | "slug_taken"
