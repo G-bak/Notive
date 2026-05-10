@@ -45,7 +45,15 @@ export type KnownReasonCode =
   | "slug_taken"
   | "invitation_pending"
   | "invitation_not_pending"
-  | "invitation_expired";
+  | "invitation_expired"
+  // CONFLICT — Phase C step 5. Concurrent writers raced on
+  // (document_id, version_number); the unique index aborted the
+  // losing transaction and the helper translates P2002 to this
+  // reason code so the route returns a clean 409. Phase C does not
+  // retry inside the same transaction (Postgres marks aborted
+  // transactions unusable); see apps/web/lib/services/document-
+  // version.ts for the escalation path if this fires too often.
+  | "version_conflict";
 
 const STATUS_FOR: Record<ApiErrorCode, number> = {
   NOT_FOUND: 404,

@@ -61,6 +61,7 @@ import {
 import { z } from "zod";
 
 import { Actions, recordActivity } from "../audit";
+import { createDocumentVersionInTx } from "./document-version";
 
 // ---------------------------------------------------------------------
 // Input schemas
@@ -219,19 +220,33 @@ export async function createDocument(
   const visibility: DocumentVisibility = parsed.data.visibility ?? "Private";
   const sourceType: DocumentSourceType = "Manual";
 
-  const created = await prisma.document.create({
-    data: {
-      organizationId,
-      title: parsed.data.title,
-      content: parsed.data.content ?? "",
-      documentType: parsed.data.documentType,
-      status: "Draft",
-      ownerUserId: userId,
-      authorUserId: userId,
-      ownerTeamId,
-      visibility,
-      sourceType,
-    },
+  // Document creation and the initial version row land in a single
+  // transaction so a row never exists in `documents` without a
+  // matching version #1. createDocumentVersionInTx writes the
+  // composite-FK-safe (document_id, organization_id) row.
+  const created = await prisma.$transaction(async (tx) => {
+    const doc = await tx.document.create({
+      data: {
+        organizationId,
+        title: parsed.data.title,
+        content: parsed.data.content ?? "",
+        documentType: parsed.data.documentType,
+        status: "Draft",
+        ownerUserId: userId,
+        authorUserId: userId,
+        ownerTeamId,
+        visibility,
+        sourceType,
+      },
+    });
+    await createDocumentVersionInTx(tx, {
+      document: { id: doc.id, organizationId: doc.organizationId },
+      title: doc.title,
+      content: doc.content,
+      changedByUserId: userId,
+      changeSummary: "initial",
+    });
+    return doc;
   });
 
   await recordActivity(prisma, {
@@ -411,10 +426,44 @@ export async function updateDocument(
     changed.push("status");
   }
 
-  const updated = await prisma.document.update({
-    where: { id: documentId },
-    data,
-  });
+  // Phase C step 5: title / content / documentType changes count as
+  // an explicit save and produce a new DocumentVersion row. There is
+  // no auto-save endpoint yet, so every PATCH that touches those
+  // three fields is treated as user-intentional.
+  // visibility / ownerTeamId / status-only changes do NOT create a
+  // version — they shape the document's permission / lifecycle
+  // metadata, not its body. The DOCUMENT_UPDATED audit row covers
+  // them.
+  const isContentSave =
+    parsed.data.title !== undefined ||
+    parsed.data.content !== undefined ||
+    parsed.data.documentType !== undefined;
+
+  let updated: Document;
+  let newVersionNumber: number | null = null;
+  if (isContentSave) {
+    const result = await prisma.$transaction(async (tx) => {
+      const doc = await tx.document.update({
+        where: { id: documentId },
+        data,
+      });
+      const version = await createDocumentVersionInTx(tx, {
+        document: { id: doc.id, organizationId: doc.organizationId },
+        title: doc.title,
+        content: doc.content,
+        changedByUserId: userId,
+        changeSummary: null,
+      });
+      return { doc, versionNumber: version.versionNumber };
+    });
+    updated = result.doc;
+    newVersionNumber = result.versionNumber;
+  } else {
+    updated = await prisma.document.update({
+      where: { id: documentId },
+      data,
+    });
+  }
 
   await recordActivity(prisma, {
     organizationId,
@@ -422,7 +471,7 @@ export async function updateDocument(
     action: Actions.DOCUMENT_UPDATED,
     targetType: "document",
     targetId: updated.id,
-    metadata: { changed },
+    metadata: newVersionNumber !== null ? { changed, newVersionNumber } : { changed },
   });
 
   return updated;
