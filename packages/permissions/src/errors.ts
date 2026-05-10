@@ -37,6 +37,9 @@ export type KnownReasonCode =
   // (Phase A §15 — no resource-existence leak).
   | "document_edit_not_allowed"
   | "document_manage_not_allowed"
+  // FORBIDDEN — Phase C document create. Used when the actor's role is
+  // Viewer (Phase C plan §8.2: Viewer cannot create documents).
+  | "document_create_not_allowed"
   // CONFLICT
   | "already_in_organization"
   | "slug_taken"
