@@ -56,6 +56,11 @@ export const Actions = {
   // action so audit consumers can distinguish "user typed in editor"
   // from "user explicitly reverted to an earlier snapshot".
   DOCUMENT_VERSION_RESTORED: "document.version_restored",
+
+  // Phase C step 7 — document tag assignment. Tag create / delete are
+  // org-level vocabulary changes and stay unaudited in Phase C; the
+  // per-document tag set IS document metadata, so we record the diff.
+  DOCUMENT_TAGS_UPDATED: "document.tags_updated",
 } as const;
 
 export type AuditAction = (typeof Actions)[keyof typeof Actions];

@@ -46,6 +46,7 @@ import type {
   DocumentVisibility,
   PrismaClient,
 } from "@notive/db";
+import { Prisma } from "@notive/db";
 import {
   type DocumentActor,
   type DocumentContext,
@@ -266,6 +267,35 @@ export async function createDocument(
   return created;
 }
 
+/** Optional filters / paging for {@link listDocuments}. Phase C step 7. */
+export interface ListDocumentsOptions {
+  status?: "Draft" | "Active" | "Archived";
+  visibility?: DocumentVisibility;
+  documentType?: string;
+  ownerTeamId?: string;
+  authorUserId?: string;
+  /** When true, only documents the user has favorited are returned. */
+  favorite?: boolean;
+  /** Filter to documents tagged with this tag id. */
+  tagId?: string;
+  /** Basic case-insensitive substring match on title or content.
+   * Phase C only — Phase F introduces real search. */
+  q?: string;
+  /** Default 20, capped at 100. */
+  limit?: number;
+}
+
+const LIST_DEFAULT_LIMIT = 20;
+const LIST_MAX_LIMIT = 100;
+
+function clampListLimit(input: number | null | undefined): number {
+  if (input === null || input === undefined) return LIST_DEFAULT_LIMIT;
+  if (!Number.isFinite(input)) return LIST_DEFAULT_LIMIT;
+  const n = Math.floor(input);
+  if (n < 1) return LIST_DEFAULT_LIMIT;
+  return Math.min(LIST_MAX_LIMIT, n);
+}
+
 /**
  * Return the documents the actor can View, ordered by most-recently-
  * updated first. Permission filtering happens in application code via
@@ -274,18 +304,51 @@ export async function createDocument(
  *
  * Deleted documents are excluded at the SQL layer — no actor (not even
  * Manage holders) sees them in the standard list. Archived documents
- * are returned and the caller can filter by `status` client-side.
+ * are returned only when the caller passes `status: "Archived"` or
+ * leaves status undefined (in which case Active / Draft / Archived
+ * all match). Phase C plan §6.3 default filters are pure client-side
+ * predicates over this result.
+ *
+ * Phase C step 7 added the optional filter / paging surface. The
+ * permission filter still runs after the SQL filter so a forged
+ * tagId / ownerTeamId / authorUserId from another org cannot leak
+ * any row.
  */
 export async function listDocuments(
   prisma: PrismaClient,
   userId: string,
   organizationId: string,
+  opts: ListDocumentsOptions = {},
 ): Promise<Document[]> {
   const membership = await requireMembership(prisma, userId, organizationId);
   const actor = actorFromMembership(membership);
+  const limit = clampListLimit(opts.limit);
+
+  const where: Prisma.DocumentWhereInput = {
+    organizationId,
+    deletedAt: null,
+    status: opts.status !== undefined ? opts.status : { not: "Deleted" },
+  };
+  if (opts.visibility !== undefined) where.visibility = opts.visibility;
+  if (opts.documentType !== undefined) where.documentType = opts.documentType;
+  if (opts.ownerTeamId !== undefined) where.ownerTeamId = opts.ownerTeamId;
+  if (opts.authorUserId !== undefined) where.authorUserId = opts.authorUserId;
+  if (opts.tagId !== undefined) {
+    where.tagLinks = { some: { tagId: opts.tagId, organizationId } };
+  }
+  if (opts.favorite === true) {
+    // Per-user — favorites belong to the actor.
+    where.favorites = { some: { userId, organizationId } };
+  }
+  if (opts.q !== undefined && opts.q.length > 0) {
+    where.OR = [
+      { title: { contains: opts.q, mode: "insensitive" } },
+      { content: { contains: opts.q, mode: "insensitive" } },
+    ];
+  }
 
   const rows = (await prisma.document.findMany({
-    where: { organizationId, status: { not: "Deleted" }, deletedAt: null },
+    where,
     include: {
       shares: {
         select: { targetType: true, targetId: true, permission: true },
@@ -304,6 +367,7 @@ export async function listDocuments(
       const { shares: _ignored, ...doc } = row;
       void _ignored;
       visible.push(doc);
+      if (visible.length >= limit) break;
     }
   }
   return visible;
