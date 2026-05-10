@@ -44,6 +44,18 @@ export type {
   InvitationStatus,
   RoleCode,
   ActivityResult,
+  Document,
+  DocumentVersion,
+  DocumentShare,
+  DocumentTag,
+  DocumentTagLink,
+  DocumentFavorite,
+  DocumentViewHistory,
+  DocumentStatus,
+  DocumentVisibility,
+  DocumentSourceType,
+  DocumentShareTargetType,
+  DocumentSharePermission,
 } from "@prisma/client";
 
 export { isLastAdminProtectionError, LAST_ADMIN_PROTECTION_PREFIX } from "./prisma-error-codes.js";
