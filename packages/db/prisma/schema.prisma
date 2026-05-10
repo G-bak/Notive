@@ -73,35 +73,81 @@ enum ActivityResult {
 }
 
 // ---------------------------------------------------------------------
+// Document enums (Phase C / DB design §7)
+// ---------------------------------------------------------------------
+
+enum DocumentStatus {
+  Draft
+  Active
+  Archived
+  Deleted
+}
+
+/// Document share scope. Phase A §15 consolidates Department into Team —
+/// no Department value exists or will be added in MVP.
+enum DocumentVisibility {
+  Private
+  Team
+  Organization
+  SpecificUsers
+}
+
+enum DocumentSourceType {
+  Manual
+  AI
+  Imported
+}
+
+enum DocumentShareTargetType {
+  User
+  Team
+  Organization
+}
+
+enum DocumentSharePermission {
+  View
+  Edit
+  Manage
+}
+
+// ---------------------------------------------------------------------
 // Auth / user tables (DB design §5)
 // ---------------------------------------------------------------------
 
 model User {
-  id              String     @id @default(uuid()) @db.Uuid
-  name            String
-  email           String     @unique
-  passwordHash    String     @map("password_hash")
-  profileImageUrl String?    @map("profile_image_url")
-  status          UserStatus @default(Pending)
-  emailVerifiedAt DateTime?  @map("email_verified_at")
-  lastLoginAt     DateTime?  @map("last_login_at")
+  id                         String     @id @default(uuid()) @db.Uuid
+  name                       String
+  email                      String     @unique
+  passwordHash               String     @map("password_hash")
+  profileImageUrl            String?    @map("profile_image_url")
+  status                     UserStatus @default(Pending)
+  emailVerifiedAt            DateTime?  @map("email_verified_at")
+  lastLoginAt                DateTime?  @map("last_login_at")
   // Phase B step 4: single outstanding token per type per user.
   // Storing only the sha256 hash; raw tokens never persisted.
   // Resend / re-request overwrites the previous row.
-  emailVerificationTokenHash String?   @unique @map("email_verification_token_hash")
-  emailVerificationExpiresAt DateTime? @map("email_verification_expires_at")
-  passwordResetTokenHash     String?   @unique @map("password_reset_token_hash")
-  passwordResetExpiresAt     DateTime? @map("password_reset_expires_at")
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
-  deletedAt       DateTime?  @map("deleted_at")
+  emailVerificationTokenHash String?    @unique @map("email_verification_token_hash")
+  emailVerificationExpiresAt DateTime?  @map("email_verification_expires_at")
+  passwordResetTokenHash     String?    @unique @map("password_reset_token_hash")
+  passwordResetExpiresAt     DateTime?  @map("password_reset_expires_at")
+  createdAt                  DateTime   @default(now()) @map("created_at")
+  updatedAt                  DateTime   @updatedAt @map("updated_at")
+  deletedAt                  DateTime?  @map("deleted_at")
 
-  sessions          Session[]
-  memberships       Membership[]
-  sentInvitations   Invitation[]   @relation("InvitedBy")
-  createdOrgs       Organization[] @relation("OrgCreatedBy")
-  managedTeams      Team[]         @relation("TeamManager")
-  activityLogs      ActivityLog[]  @relation("ActivityActor")
+  sessions        Session[]
+  memberships     Membership[]
+  sentInvitations Invitation[]   @relation("InvitedBy")
+  createdOrgs     Organization[] @relation("OrgCreatedBy")
+  managedTeams    Team[]         @relation("TeamManager")
+  activityLogs    ActivityLog[]  @relation("ActivityActor")
+
+  ownedDocuments        Document[]            @relation("DocumentOwner")
+  authoredDocuments     Document[]            @relation("DocumentAuthor")
+  documentVersionEdits  DocumentVersion[]     @relation("DocumentVersionChangedBy")
+  documentSharesCreated DocumentShare[]       @relation("DocumentShareCreatedBy")
+  documentTagsCreated   DocumentTag[]         @relation("DocumentTagCreatedBy")
+  documentFavorites     DocumentFavorite[]
+  documentViewHistories DocumentViewHistory[]
 
   @@index([status])
   @@map("users")
@@ -167,6 +213,14 @@ model Organization {
   settings     OrganizationSetting?
   activityLogs ActivityLog[]
 
+  documents             Document[]
+  documentVersions      DocumentVersion[]
+  documentShares        DocumentShare[]
+  documentTags          DocumentTag[]
+  documentTagLinks      DocumentTagLink[]
+  documentFavorites     DocumentFavorite[]
+  documentViewHistories DocumentViewHistory[]
+
   @@index([status])
   @@map("organizations")
 }
@@ -190,6 +244,12 @@ model Team {
   memberships  Membership[]
   invitations  Invitation[]
 
+  ownedDocuments Document[] @relation("DocumentOwnerTeam")
+
+  /// Composite unique on (id, organization_id). Phase C document
+  /// tables reference this via composite FK so a document's
+  /// owner_team must belong to the same organization as the document.
+  @@unique([id, organizationId])
   @@index([organizationId, name])
   @@index([organizationId, status])
   @@map("teams")
@@ -282,4 +342,189 @@ model ActivityLog {
   @@index([organizationId, actorUserId, createdAt])
   @@index([organizationId, action, createdAt])
   @@map("activity_logs")
+}
+
+// ---------------------------------------------------------------------
+// Document tables (Phase C / DB design §7)
+//
+// Scoping rule: every document-related row carries `organization_id`
+// even when it is reachable through `document_id`. This denormalisation
+// keeps Phase C / F permission filters and audit queries org-scoped
+// without an extra join. The application layer is responsible for
+// keeping `organization_id` consistent with the parent document.
+//
+// `templateId` and `aiRequestId` on `Document` are nullable Uuid
+// scalars without a Prisma `@relation`. The corresponding tables
+// (`templates`, `ai_requests`) land in Phase D; the FK constraints
+// are added then. Phase C keeps the columns reserved so the document
+// shape does not change later.
+// ---------------------------------------------------------------------
+
+model Document {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  title          String
+  content        String             @default("") @db.Text
+  documentType   String             @map("document_type")
+  status         DocumentStatus     @default(Draft)
+  ownerUserId    String?            @map("owner_user_id") @db.Uuid
+  authorUserId   String?            @map("author_user_id") @db.Uuid
+  ownerTeamId    String?            @map("owner_team_id") @db.Uuid
+  visibility     DocumentVisibility @default(Private)
+  sourceType     DocumentSourceType @default(Manual) @map("source_type")
+  /// Forward reference to Phase D `templates`. FK added in Phase D.
+  templateId     String?            @map("template_id") @db.Uuid
+  /// Forward reference to Phase D `ai_requests`. FK added in Phase D.
+  aiRequestId    String?            @map("ai_request_id") @db.Uuid
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+  deletedAt      DateTime?          @map("deleted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner        User?        @relation("DocumentOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  author       User?        @relation("DocumentAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  /// Composite FK enforces ownerTeam belongs to the same organization
+  /// as the document (Phase C organization-boundary integrity). The
+  /// referential action is NoAction because SetNull cannot null the
+  /// composite when organization_id is NOT NULL — the application
+  /// nulls owner_team_id before any team hard-delete (teams are
+  /// normally soft-deleted via deletedAt anyway).
+  ownerTeam    Team?        @relation("DocumentOwnerTeam", fields: [ownerTeamId, organizationId], references: [id, organizationId], onDelete: NoAction, onUpdate: NoAction)
+
+  versions      DocumentVersion[]
+  shares        DocumentShare[]
+  tagLinks      DocumentTagLink[]
+  favorites     DocumentFavorite[]
+  viewHistories DocumentViewHistory[]
+
+  /// Composite unique on (id, organization_id) so document children
+  /// can declare a composite FK on (document_id, organization_id) and
+  /// have Postgres reject cross-organization mixes at the DB layer.
+  @@unique([id, organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, visibility])
+  @@index([organizationId, ownerUserId])
+  @@index([organizationId, ownerTeamId])
+  @@index([organizationId, documentType])
+  @@index([organizationId, updatedAt])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id              String   @id @default(uuid()) @db.Uuid
+  documentId      String   @map("document_id") @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  versionNumber   Int      @map("version_number")
+  titleSnapshot   String   @map("title_snapshot")
+  contentSnapshot String   @map("content_snapshot") @db.Text
+  changedByUserId String?  @map("changed_by_user_id") @db.Uuid
+  changeSummary   String?  @map("change_summary")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  /// Composite FK on (document_id, organization_id) → documents.
+  /// Enforces that a version row's organization matches its parent
+  /// document at the DB layer.
+  document     Document     @relation(fields: [documentId, organizationId], references: [id, organizationId], onDelete: Cascade, onUpdate: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  changedBy    User?        @relation("DocumentVersionChangedBy", fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([documentId, versionNumber])
+  @@index([organizationId, documentId])
+  @@map("document_versions")
+}
+
+model DocumentShare {
+  id              String                  @id @default(uuid()) @db.Uuid
+  documentId      String                  @map("document_id") @db.Uuid
+  organizationId  String                  @map("organization_id") @db.Uuid
+  targetType      DocumentShareTargetType @map("target_type")
+  /// User ID, Team ID, or Organization ID depending on `targetType`.
+  /// Polymorphic; FK is enforced by application code, not by Prisma.
+  targetId        String                  @map("target_id") @db.Uuid
+  permission      DocumentSharePermission
+  createdByUserId String?                 @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime                @default(now()) @map("created_at")
+  updatedAt       DateTime                @updatedAt @map("updated_at")
+
+  /// Composite FK on (document_id, organization_id) → documents.
+  document     Document     @relation(fields: [documentId, organizationId], references: [id, organizationId], onDelete: Cascade, onUpdate: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("DocumentShareCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([documentId, targetType, targetId])
+  @@index([organizationId, targetType, targetId])
+  @@map("document_shares")
+}
+
+model DocumentTag {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  name            String
+  color           String?
+  createdByUserId String?  @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?             @relation("DocumentTagCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  links        DocumentTagLink[]
+
+  /// Composite unique on (id, organization_id) so document_tag_links
+  /// can enforce that a tag and its link share the same organization.
+  @@unique([id, organizationId])
+  @@unique([organizationId, name])
+  @@map("document_tags")
+}
+
+model DocumentTagLink {
+  id             String   @id @default(uuid()) @db.Uuid
+  documentId     String   @map("document_id") @db.Uuid
+  tagId          String   @map("tag_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  /// Composite FKs on (document_id, organization_id) and
+  /// (tag_id, organization_id). Both ensure the link's organization
+  /// matches the document's and the tag's at the DB layer.
+  document     Document     @relation(fields: [documentId, organizationId], references: [id, organizationId], onDelete: Cascade, onUpdate: Cascade)
+  tag          DocumentTag  @relation(fields: [tagId, organizationId], references: [id, organizationId], onDelete: Cascade, onUpdate: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, tagId])
+  @@index([organizationId, tagId])
+  @@map("document_tag_links")
+}
+
+model DocumentFavorite {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  documentId     String   @map("document_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Composite FK on (document_id, organization_id) → documents.
+  document     Document     @relation(fields: [documentId, organizationId], references: [id, organizationId], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([userId, documentId])
+  @@index([organizationId, userId])
+  @@map("document_favorites")
+}
+
+model DocumentViewHistory {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  documentId     String   @map("document_id") @db.Uuid
+  viewedAt       DateTime @default(now()) @map("viewed_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Composite FK on (document_id, organization_id) → documents.
+  document     Document     @relation(fields: [documentId, organizationId], references: [id, organizationId], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([organizationId, userId, viewedAt])
+  @@index([documentId])
+  @@map("document_view_histories")
 }
