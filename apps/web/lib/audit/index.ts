@@ -47,6 +47,9 @@ export const Actions = {
   DOCUMENT_CREATED: "document.created",
   DOCUMENT_UPDATED: "document.updated",
   DOCUMENT_DELETED: "document.deleted",
+
+  // Phase C step 4 — document sharing API.
+  DOCUMENT_SHARES_UPDATED: "document.shares_updated",
 } as const;
 
 export type AuditAction = (typeof Actions)[keyof typeof Actions];
