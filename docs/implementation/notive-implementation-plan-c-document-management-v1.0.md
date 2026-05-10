@@ -1,333 +1,348 @@
-# C. 문서 관리 세부 구현 계획서 v1.0
+# C. Document Management Detailed Plan v1.0
 
-# Notive 문서 관리
-
----
-
-# 1. 문서 목적
-
-본 문서는 Notive 전체 구현 계획 중 C단계인 문서 관리 구현의 세부 계획을 정의한다.
-
-C단계의 목적은 사용자가 문서를 작성, 저장, 조회, 수정, 공유하고 이후 다시 찾을 수 있는 문서 관리 기반을 구축하는 것이다. 이 단계에서 만들어지는 문서 구조는 D단계 AI 문서 생성, E단계 업무 맥락, F단계 사내 지식 검색의 중심 데이터가 된다.
+# Notive Document Management
 
 ---
 
-# 2. C단계 목표
+# 1. Purpose
 
-C단계가 완료되면 다음이 가능해야 한다.
+This document defines the detailed plan for Phase C (Document Management) of Notive's overall implementation plan.
 
-* 사용자가 새 문서를 작성할 수 있다.
-* 문서를 저장하고 다시 열람할 수 있다.
-* 문서 제목, 본문, 유형, 태그 등 기본 정보를 관리할 수 있다.
-* 문서를 수정하고 변경 이력을 확인할 수 있다.
-* 문서의 공개 범위와 접근 대상을 설정할 수 있다.
-* 역할과 공유 범위에 따라 문서 접근이 제한된다.
-* 최근 문서, 즐겨찾기, 기본 필터로 문서를 탐색할 수 있다.
-* 이후 AI 생성 결과를 문서로 저장할 수 있는 기반이 준비된다.
+The goal of Phase C is to build the document management foundation through which a user can create, save, view, modify, share, and re-discover documents. The document structure produced in this phase becomes the central data for Phase D (AI document generation), Phase E (work context), and Phase F (in-house knowledge search).
 
 ---
 
-# 3. C단계 구현 범위
+# 2. Phase C Goals
 
-## 3.1 포함 범위
+When Phase C completes, the following must be possible.
 
-* 문서 목록
-* 문서 상세
-* 문서 작성
-* 문서 편집
-* 수동 저장
-* 임시 저장
-* 기본 자동 저장
-* 문서 상태 관리
-* 문서 유형 관리
-* 태그 관리
-* 최근 문서
-* 즐겨찾기
-* 문서 공유 범위 설정
-* 특정 사용자 공유
-* 팀/부서 공유
-* 문서 버전 기록
-* 이전 버전 확인
-* 기본 복원
-* 문서 삭제 또는 보관 처리
+* A user can create a new document.
+* A user can save a document and re-open it.
+* Basic document metadata — title, body, type, tags — can be managed.
+* A user can edit a document and view its change history.
+* A user can configure the document's visibility scope and access targets.
+* Document access is restricted by role and share scope.
+* A user can navigate documents by recent, favorite, and basic filters.
+* The foundation is ready for storing AI-generated output as a document in later phases.
 
 ---
 
-## 3.2 제외 범위
+# 3. Phase C Scope
 
-* AI 문서 생성
-* AI 기반 문서 요약
-* 자연어 검색
-* 첨부 파일 고도화
-* 실시간 공동 편집
-* 댓글 및 멘션
-* 결재/승인 워크플로우
-* 외부 공유 링크
-* 전자서명
-* 오프라인 편집
+## 3.1 In scope
+
+* Document list
+* Document detail
+* Document creation
+* Document editing
+* Manual save
+* Draft save
+* Basic auto-save
+* Document state management
+* Document type management
+* Tag management
+* Recent documents
+* Favorites
+* Document share-scope configuration
+* Sharing with specific users
+* Team sharing
+* Document version history
+* Viewing previous versions
+* Basic restore
+* Document delete or archive handling
 
 ---
 
-# 4. 선행 조건
+## 3.2 Out of scope
 
-C단계 착수 전 B단계에서 다음 항목이 준비되어야 한다.
+* AI document generation
+* AI-based document summarization
+* Natural-language search
+* Advanced attachment handling
+* Real-time collaborative editing
+* Comments and mentions
+* Approval / review workflow
+* External share links
+* Electronic signatures
+* Offline editing
 
-| 항목 | 필요 이유 |
+---
+
+# 4. Prerequisites
+
+The following must be in place from Phase B before Phase C work begins.
+
+## 4.1 User / organization identification and base UI
+
+| Item | Reason |
 | --- | --- |
-| 로그인 사용자 식별 | 문서 작성자와 소유자 설정 |
-| 현재 조직 식별 | 조직별 문서 분리 |
-| 팀/부서 식별 | 팀 공유와 문서 소유 범위 설정 |
-| 역할 확인 | 문서 작성, 수정, 공유 권한 판단 |
-| 기본 레이아웃 | 문서 화면 진입과 내비게이션 구성 |
-| 접근 제한 처리 | 권한 없는 문서 접근 차단 |
+| Logged-in user identification | Sets document author and owner |
+| Current organization identification | Separates documents per organization |
+| Team identification | Determines team-share and document ownership scope |
+| Role check | Determines create / edit / share permissions |
+| Base layout | Document screen entry and navigation |
+| Access denial handling | Blocks access to documents the user has no permission for |
 
----
+## 4.2 Phase B artifact dependencies
 
-# 5. 주요 사용자 흐름
+Phase C permission decisions, audit records, and response policies are written on top of the following Phase B artifacts.
 
-## 5.1 새 문서 작성
-
-### 기본 흐름
-
-1. 사용자가 문서 메뉴에서 새 문서 작성을 선택한다.
-2. 문서 유형을 선택하거나 기본 문서로 시작한다.
-3. 제목과 본문을 작성한다.
-4. 태그 또는 소유 팀을 설정한다.
-5. 저장한다.
-6. 문서 상세 또는 편집 화면에서 저장 결과를 확인한다.
-
-### 예외 흐름
-
-* 제목 없이 저장 시 기본 제목을 부여하거나 입력을 요청한다.
-* 본문이 비어 있어도 초안 저장은 허용한다.
-* 저장 실패 시 재시도와 임시 보존 안내를 제공한다.
-* 작성 권한이 없으면 문서 작성 화면 진입을 제한한다.
-
----
-
-## 5.2 문서 조회
-
-### 기본 흐름
-
-1. 사용자가 문서 목록에 진입한다.
-2. 접근 가능한 문서 목록을 확인한다.
-3. 필터 또는 정렬을 적용한다.
-4. 문서를 선택한다.
-5. 문서 상세 화면에서 내용을 확인한다.
-
-### 예외 흐름
-
-* 접근 권한이 없는 문서는 목록에 표시하지 않는다.
-* 직접 URL로 접근해도 권한이 없으면 접근 제한 화면을 표시한다.
-* 삭제 또는 보관된 문서 접근 시 상태에 맞는 안내를 표시한다.
-
----
-
-## 5.3 문서 수정
-
-### 기본 흐름
-
-1. 사용자가 문서 상세에서 편집을 선택한다.
-2. 수정 권한을 확인한다.
-3. 제목, 본문, 태그, 문서 정보를 수정한다.
-4. 저장한다.
-5. 변경 이력이 기록된다.
-
-### 예외 흐름
-
-* 수정 권한이 없으면 편집 버튼을 표시하지 않거나 진입을 제한한다.
-* 다른 사용자가 수정한 이후의 오래된 버전을 저장하려는 경우 충돌 안내를 제공한다.
-* 저장 실패 시 사용자가 작성 중인 내용을 잃지 않도록 안내한다.
-
----
-
-## 5.4 문서 공유
-
-### 기본 흐름
-
-1. 문서 소유자 또는 권한 있는 사용자가 공유 설정을 연다.
-2. 공유 범위를 선택한다.
-3. 특정 팀, 부서, 사용자 또는 조직 전체를 지정한다.
-4. 접근 권한 수준을 설정한다.
-5. 저장한다.
-6. 공유 대상 사용자는 문서 목록 또는 공유받은 문서에서 확인할 수 있다.
-
-### 예외 흐름
-
-* 공유 권한이 없는 사용자는 공유 설정에 접근할 수 없다.
-* 조직 외부 공유는 MVP에서 제공하지 않는다.
-* Viewer에게 수정 권한을 부여할 수 있는지 여부는 권한 정책에 따른다.
-
----
-
-## 5.5 버전 확인 및 복원
-
-### 기본 흐름
-
-1. 사용자가 문서 상세 또는 편집 화면에서 버전 기록을 연다.
-2. 저장된 버전 목록을 확인한다.
-3. 특정 버전을 미리 본다.
-4. 필요 시 현재 문서로 복원한다.
-5. 복원 자체도 새로운 변경 이력으로 기록된다.
-
-### 예외 흐름
-
-* 복원 권한이 없는 사용자는 복원할 수 없다.
-* 삭제된 문서의 버전 복원은 관리자 정책에 따른다.
-* 너무 오래된 버전 보존 여부는 보존 정책에 따른다.
-
----
-
-# 6. 화면 구성
-
-## 6.1 C단계 P0 화면
-
-| 화면 | 목적 | 접근 대상 |
+| Item | Source | Reason |
 | --- | --- | --- |
-| 문서 목록 | 접근 가능한 문서 탐색 | 로그인 사용자 |
-| 문서 상세 | 문서 내용 조회 | 문서 접근 가능 사용자 |
-| 문서 작성 | 새 문서 작성 | Editor 이상 |
-| 문서 편집 | 기존 문서 수정 | 수정 권한 보유 사용자 |
-| 공유 설정 | 문서 공유 범위 설정 | 소유자, Manager, Admin |
-| 접근 제한 | 권한 없는 문서 접근 안내 | 로그인 사용자 |
+| `@notive/permissions` permission module | Phase B Step 6 | All permission decisions for the document list / detail / edit / share are delegated to a single module. Phase C extends this module with document-domain rules rather than introducing parallel checks. |
+| `apps/web/lib/audit` audit writer skeleton | Phase B Step 8 | Success events for mutating actions (create / update / share-change / delete / restore) are written through the same writer. Phase C does not add new columns to `activity_logs`. |
+| 1 user = 1 active organization constraint | Phase A §15 / Phase B Step 5 | Forms the context for document-owning organization and share-scope decisions. Concurrent multi-organization access is not assumed. |
+| Single primary team via `memberships.team_id` | Phase A §15 / Phase B Step 5 | Single basis for document-owning team and team-share decisions. Multi-team ownership is not introduced until Phase A §15 is updated. |
+| Last-Admin protection | Phase B Step 7 | Phase C document flows do not directly modify membership role / status. When document ownership transfer or share-manager assignment is coupled with a membership change flow, Phase B Last-Admin protection is not bypassed. |
+| `NOT_FOUND` / `FORBIDDEN(reason_code)` response policy | Phase B Step 6 / §15.2 | Permission denials default to `NOT_FOUND` so that resource existence is not leaked. `FORBIDDEN(reason_code)` is used only when an explicit reason must be exposed. |
 
 ---
 
-## 6.2 C단계 P1 화면
+# 5. Primary user flows
 
-| 화면 | 목적 | 접근 대상 |
+## 5.1 New document creation
+
+### Main flow
+
+1. The user selects "Create new document" from the document menu.
+2. The user picks a document type or starts with a generic document.
+3. The user enters a title and body.
+4. The user sets tags or owning team.
+5. The user saves.
+6. The save result is reflected in the document detail or editor screen.
+
+### Exception flow
+
+* Saving without a title falls back to a default title or prompts for input.
+* An empty body is allowed for draft save.
+* On save failure, the user is offered retry and draft-preservation guidance.
+* If the user lacks create permission, entry to the create screen is blocked.
+
+---
+
+## 5.2 Document viewing
+
+### Main flow
+
+1. The user enters the document list.
+2. The user sees the documents they have access to.
+3. The user applies filter or sort.
+4. The user picks a document.
+5. The user views its content on the detail screen.
+
+### Exception flow
+
+* Documents the user has no access to are not shown in the list.
+* Direct URL access without permission shows the access-denied screen.
+* Deleted or archived documents show a state-appropriate message on access.
+
+---
+
+## 5.3 Document editing
+
+### Main flow
+
+1. The user selects "Edit" from the document detail screen.
+2. Edit permission is checked.
+3. The user modifies title, body, tags, and document metadata.
+4. The user saves.
+5. A change history record is written.
+
+### Exception flow
+
+* If the user lacks edit permission, the Edit button is hidden or entry is blocked.
+* If a stale version is being saved over a newer one, a conflict notice is shown.
+* On save failure, the user's in-progress content must not be lost.
+
+---
+
+## 5.4 Document sharing
+
+### Main flow
+
+1. The document owner or another permitted user opens the share dialog.
+2. The user selects a share scope.
+3. The user designates a specific team, user, or the entire organization (per Phase A §15, the Department share scope is consolidated into Team).
+4. The user sets the access permission level.
+5. The user saves.
+6. The share targets see the document in their list or in their "Shared with me" view.
+
+### Exception flow
+
+* Users without share permission cannot open the share dialog.
+* External sharing outside the organization is not provided in MVP.
+* Whether Viewer can be granted edit permission follows the permission policy.
+
+---
+
+## 5.5 Version review and restore
+
+### Main flow
+
+1. The user opens the version history from the detail or editor screen.
+2. The user reviews the saved version list.
+3. The user previews a specific version.
+4. The user restores it as the current document if needed.
+5. The restore itself is recorded as a new change-history entry.
+
+### Exception flow
+
+* Users without restore permission cannot restore.
+* Restoring versions of a deleted document follows the admin policy.
+* Whether very old versions are retained follows the retention policy.
+
+---
+
+# 6. Screen composition
+
+## 6.1 Phase C P0 screens
+
+| Screen | Purpose | Audience |
 | --- | --- | --- |
-| 버전 기록 | 문서 변경 이력 확인 | 문서 접근 가능 사용자 |
-| 버전 미리보기 | 특정 버전 내용 확인 | 문서 접근 가능 사용자 |
-| 삭제/보관 문서 목록 | 삭제 또는 보관 문서 확인 | Admin 또는 문서 소유자 |
-| 즐겨찾기 문서 | 자주 쓰는 문서 접근 | 로그인 사용자 |
-| 최근 문서 | 최근 열람/수정 문서 접근 | 로그인 사용자 |
+| Document list | Browse accessible documents | Logged-in users |
+| Document detail | View document content | Users with access to the document |
+| Document create | Create a new document | Editor and above |
+| Document edit | Edit an existing document | Users with edit permission |
+| Share settings | Configure document share scope | Owner, Manager, Admin |
+| Access denied | Notice for documents the user has no permission for | Logged-in users |
 
 ---
 
-## 6.3 문서 목록 구성
+## 6.2 Phase C P1 screens
 
-문서 목록은 반복 사용되는 핵심 화면이므로 빠른 탐색에 집중한다.
-
-### 표시 요소
-
-* 문서 제목
-* 문서 유형
-* 작성자
-* 소유 팀
-* 공유 범위
-* 태그
-* 최근 수정일
-* 즐겨찾기 여부
-* 상태
-
-### 기본 필터
-
-* 내 문서
-* 공유받은 문서
-* 팀 문서
-* 즐겨찾기
-* 최근 수정
-* 문서 유형
-* 태그
-
----
-
-## 6.4 문서 상세 구성
-
-### 표시 요소
-
-* 제목
-* 본문
-* 문서 유형
-* 작성자
-* 소유 팀
-* 공유 범위
-* 태그
-* 생성일
-* 수정일
-* 버전 정보
-
-### 주요 액션
-
-* 편집
-* 공유 설정
-* 즐겨찾기
-* 버전 기록
-* 복제
-* 보관 또는 삭제
-
----
-
-## 6.5 문서 편집 구성
-
-### 편집 요소
-
-* 제목 입력
-* 본문 편집기
-* 문서 유형 선택
-* 태그 입력
-* 소유 팀 선택
-* 저장 버튼
-* 임시 저장 상태
-* 공유 설정 진입
-
-### 편집 UX 원칙
-
-* 저장 상태를 명확히 표시한다.
-* 사용자가 작성 중인 내용을 잃지 않도록 한다.
-* AI 생성 결과가 들어올 수 있는 구조를 고려한다.
-* 긴 문서 작성 시 화면이 과도하게 복잡해지지 않도록 한다.
-
----
-
-# 7. 데이터 설계 범위
-
-## 7.1 C단계 핵심 데이터
-
-| 데이터 | 설명 | 우선순위 |
+| Screen | Purpose | Audience |
 | --- | --- | --- |
-| Document | 문서 본문과 메타데이터 | P0 |
-| DocumentVersion | 문서 변경 이력 | P1 |
-| DocumentShare | 문서 공유 대상과 권한 | P0 |
-| DocumentTag | 문서 태그 | P0 |
-| DocumentFavorite | 사용자별 즐겨찾기 | P1 |
-| DocumentViewHistory | 최근 문서 기록 | P1 |
-| DocumentTrash | 삭제 또는 보관 상태 | P1 |
+| Version history | View document change history | Users with access to the document |
+| Version preview | View a specific version's content | Users with access to the document |
+| Deleted / archived list | View deleted or archived documents | Admin or document owner |
+| Favorite documents | Quick access to frequently-used documents | Logged-in users |
+| Recent documents | Quick access to recently viewed / edited documents | Logged-in users |
+
+---
+
+## 6.3 Document list composition
+
+The document list is a recurring, high-traffic screen, so it focuses on fast browsing.
+
+### Display elements
+
+* Document title
+* Document type
+* Author
+* Owning team
+* Share scope
+* Tags
+* Last-modified date
+* Favorite flag
+* State
+
+### Default filters
+
+* My documents
+* Shared with me
+* Team documents
+* Favorites
+* Recently modified
+* Document type
+* Tag
+
+---
+
+## 6.4 Document detail composition
+
+### Display elements
+
+* Title
+* Body
+* Document type
+* Author
+* Owning team
+* Share scope
+* Tags
+* Created date
+* Last-modified date
+* Version info
+
+### Primary actions
+
+* Edit
+* Share settings
+* Favorite
+* Version history
+* Duplicate
+* Archive or delete
+
+---
+
+## 6.5 Document edit composition
+
+### Edit elements
+
+* Title input
+* Body editor
+* Document type selector
+* Tag input
+* Owning team selector
+* Save button
+* Draft save state
+* Entry to share settings
+
+### Edit UX principles
+
+* Save state is clearly displayed.
+* The user's in-progress content must not be lost.
+* The structure must allow AI-generated output to flow into the editor in later phases.
+* The screen must not become overly complex during long-form editing.
+
+---
+
+# 7. Data design scope
+
+## 7.1 Phase C core data
+
+| Data | Description | Priority |
+| --- | --- | --- |
+| Document | Document body and metadata | P0 |
+| DocumentVersion | Document change history | P1 |
+| DocumentShare | Document share targets and permissions | P0 |
+| DocumentTag | Document tag | P0 |
+| DocumentFavorite | Per-user favorites | P1 |
+| DocumentViewHistory | Recent-document records | P1 |
+| DocumentTrash | Deleted / archived state | P1 |
 
 ---
 
 ## 7.2 Document
 
-### 주요 필드
+### Primary fields
 
 * ID
-* 조직 ID
-* 제목
-* 본문
-* 문서 유형
-* 상태
-* 작성자
-* 소유자
-* 소유 팀
-* 공유 범위
-* 생성 방식
-* 생성일
-* 수정일
-* 삭제일
+* Organization ID
+* Title
+* Body
+* Document type
+* State
+* Author
+* Owner
+* Owning team
+* Share scope
+* Creation method
+* Created at
+* Updated at
+* Deleted at
 
-### 문서 유형 예시
+### Document type examples
 
-* 일반 문서
-* 보고서
-* 회의록
-* 제안서
-* 기획서
+* General document
+* Report
+* Meeting notes
+* Proposal
+* Plan
 * SOP
-* 이메일 초안
-* 정책 문서
+* Email draft
+* Policy document
 
-### 문서 상태
+### Document state
 
 * Draft
 * Active
@@ -338,23 +353,23 @@ C단계 착수 전 B단계에서 다음 항목이 준비되어야 한다.
 
 ## 7.3 DocumentShare
 
-### 주요 필드
+### Primary fields
 
 * ID
-* 문서 ID
-* 공유 대상 유형
-* 공유 대상 ID
-* 접근 권한
-* 생성자
-* 생성일
+* Document ID
+* Share-target type
+* Share-target ID
+* Access permission
+* Created by
+* Created at
 
-### 공유 대상 유형
+### Share-target types
 
 * User
 * Team
 * Organization
 
-### 접근 권한
+### Access permissions
 
 * View
 * Edit
@@ -364,359 +379,406 @@ C단계 착수 전 B단계에서 다음 항목이 준비되어야 한다.
 
 ## 7.4 DocumentVersion
 
-### 주요 필드
+### Primary fields
 
 * ID
-* 문서 ID
-* 버전 번호
-* 제목
-* 본문 스냅샷
-* 변경자
-* 변경 요약
-* 생성일
+* Document ID
+* Version number
+* Title
+* Body snapshot
+* Modified by
+* Change summary
+* Created at
 
-### 버전 생성 기준
+### Version creation rules
 
-* 명시적 저장 시 생성
-* AI 생성 결과 저장 시 생성
-* 복원 시 새 버전 생성
-* 자동 저장은 버전 기록과 분리할 수 있음
+* Created on explicit save
+* Created on save of an AI-generated result
+* Created when restoring (the restore itself is a new version)
+* Auto-save may be decoupled from version history
 
 ---
 
 ## 7.5 DocumentTag
 
-### 주요 필드
+### Primary fields
 
 * ID
-* 조직 ID
-* 태그명
-* 색상 또는 표시 속성
-* 생성자
-* 생성일
+* Organization ID
+* Tag name
+* Color or display attribute
+* Created by
+* Created at
 
-### 설계 결정 사항
+### Design decisions
 
-* 사용자가 자유롭게 태그를 만들 수 있는지 여부
-* 관리자만 태그를 관리할지 여부
-* 문서 유형과 태그의 역할 구분
-
----
-
-# 8. 권한 설계
-
-## 8.1 문서 권한 판단 기준
-
-문서 접근은 다음 기준을 조합하여 판단한다.
-
-* 현재 조직
-* 사용자 역할
-* 문서 작성자
-* 문서 소유자
-* 사용자의 팀
-* 문서 소유 팀
-* 문서 공유 범위
-* 개별 공유 권한
-* 문서 상태
+* Whether users can freely create tags
+* Whether only admins manage tags
+* Role separation between document type and tag
 
 ---
 
-## 8.2 역할별 기본 권한
+# 8. Permission design
 
-| 기능 | Viewer | Editor | Manager | Admin |
+## 8.1 Document permission decision basis
+
+Document access is decided by combining the following.
+
+* Current organization
+* User's role
+* Document author
+* Document owner
+* User's team
+* Document's owning team
+* Document share scope
+* Individual share permission
+* Document state
+
+---
+
+## 8.2 Default permissions per role
+
+| Capability | Viewer | Editor | Manager | Admin |
 | --- | --- | --- | --- | --- |
-| 문서 목록 조회 | 가능 | 가능 | 가능 | 가능 |
-| 문서 상세 조회 | 권한 문서만 | 권한 문서만 | 팀 권한 문서 | 정책에 따름 |
-| 새 문서 작성 | 불가 | 가능 | 가능 | 가능 |
-| 문서 수정 | 불가 또는 제한 | 권한 문서만 | 팀 권한 문서 | 정책에 따름 |
-| 문서 공유 | 불가 | 제한 | 가능 | 가능 |
-| 문서 삭제 | 불가 | 본인 문서 제한 | 팀 문서 제한 | 가능 |
-| 버전 복원 | 불가 | 권한 문서 제한 | 가능 | 가능 |
+| Document list | Allowed | Allowed | Allowed | Allowed |
+| Document detail | Permitted docs only | Permitted docs only | Team-permitted docs | Per policy |
+| Create document | No | Allowed | Allowed | Allowed |
+| Edit document | No or limited | Permitted docs only | Team-permitted docs | Per policy |
+| Share document | No | Limited | Allowed | Allowed |
+| Delete document | No | Own docs only (limited) | Team docs (limited) | Allowed |
+| Restore version | No | Permitted docs (limited) | Allowed | Allowed |
 
 ---
 
-## 8.3 공유 범위별 접근
+## 8.3 Access by share scope
 
-| 공유 범위 | 접근 대상 |
+| Share scope | Audience |
 | --- | --- |
-| Private | 작성자 또는 소유자 |
-| Team | 지정 팀 사용자 |
-| Organization | 조직 전체 사용자 |
-| Specific Users | 지정 사용자 |
+| Private | Author or owner |
+| Team | Designated team users |
+| Organization | All users in the organization |
+| Specific Users | Designated users |
 
-MVP는 Department 공유 범위를 두지 않고 Team으로 통합한다(Phase A §15).
-
----
-
-## 8.4 권한 예외 원칙
-
-* 권한 없는 문서는 목록에 표시하지 않는다.
-* 직접 URL 접근 시에도 권한을 다시 확인한다.
-* 삭제된 문서는 일반 목록에서 제외한다.
-* AI와 검색 기능에서도 동일한 권한 기준을 사용한다.
-* Admin은 조직 전체 문서 본문에 대한 묵시적 접근을 가지지 않는다(Phase A §15). 메타데이터만 조회하며, 본문은 일반 권한 규칙(Organization 공개 또는 명시 공유)을 따른다.
+MVP does not introduce a Department share scope; it is consolidated into Team (Phase A §15).
 
 ---
 
-# 9. 저장 및 버전 정책
+## 8.4 Permission exception rules
 
-## 9.1 저장 방식
-
-문서 저장은 다음 방식을 제공한다.
-
-* 명시 저장
-* 임시 저장
-* 기본 자동 저장
+* Documents the user has no access to are not shown in the list.
+* Direct URL access also re-checks permission.
+* Deleted documents are excluded from the standard list.
+* AI and search features apply the same permission basis.
+* Admin does not have an implicit pass-through to all document bodies in the organization (Phase A §15). Admins can read metadata, but body access follows the standard permission rules (Organization-public or explicit share).
 
 ---
 
-## 9.2 명시 저장
+# 9. Save and version policy
 
-사용자가 저장 버튼을 눌러 문서 변경 사항을 확정한다.
+## 9.1 Save modes
 
-### 처리 기준
+The following save modes are provided.
 
-* 문서 본문과 메타데이터를 저장한다.
-* 필요한 경우 새 버전을 생성한다.
-* 저장 성공/실패 상태를 표시한다.
-* 저장 후 최근 수정일을 갱신한다.
-
----
-
-## 9.3 임시 저장
-
-작성 중인 문서를 잃지 않도록 임시 저장을 지원한다.
-
-### 처리 기준
-
-* 제목이 없어도 저장 가능하다.
-* 본문이 비어 있어도 저장 가능하다.
-* 초안 상태로 문서 목록에 표시할지 여부를 결정한다.
-* 사용자가 나중에 이어서 작성할 수 있어야 한다.
+* Explicit save
+* Draft save
+* Basic auto-save
 
 ---
 
-## 9.4 자동 저장
+## 9.2 Explicit save
 
-자동 저장은 사용자 경험을 보완하기 위한 기능이다.
+The user presses the Save button to commit document changes.
 
-### 처리 기준
+### Rules
 
-* 일정 시간 또는 주요 변경 후 자동 저장한다.
-* 자동 저장 상태를 사용자에게 표시한다.
-* 자동 저장 실패 시 수동 저장을 안내한다.
-* 모든 자동 저장을 버전으로 남기지는 않는다.
-
----
-
-## 9.5 버전 정책
-
-### 기본 원칙
-
-* 의미 있는 저장 단위로 버전을 남긴다.
-* 복원 시 기존 내용을 덮어쓰지 않고 새 버전을 만든다.
-* 변경자와 변경 시각을 기록한다.
-* 버전 보존 기간은 추후 운영 정책에 따라 조정 가능하게 한다.
+* Persist body and metadata.
+* Create a new version when applicable.
+* Display save success / failure state.
+* Update the last-modified timestamp on success.
 
 ---
 
-# 10. 삭제 및 보관 정책
+## 9.3 Draft save
 
-## 10.1 문서 삭제 방식
+Draft save is provided so the user does not lose in-progress content.
 
-MVP에서는 즉시 물리 삭제보다 보관 또는 휴지통 방식을 우선한다.
+### Rules
 
-### 권장 방식
-
-* 사용자가 삭제하면 Deleted 상태로 변경한다.
-* 일반 목록에서는 보이지 않게 한다.
-* 일정 기간 복구 가능하게 한다.
-* Admin 또는 소유자가 복구할 수 있다.
+* Save is allowed without a title.
+* Save is allowed without a body.
+* Whether to show drafts in the document list is decided by policy.
+* The user can resume editing later.
 
 ---
 
-## 10.2 보관 처리
+## 9.4 Auto-save
 
-보관은 더 이상 활발히 사용하지 않는 문서를 숨기는 기능이다.
+Auto-save is a UX convenience.
 
-### 처리 기준
+### Rules
 
-* Archived 상태로 변경한다.
-* 검색과 목록에서 필터로 확인 가능하게 한다.
-* 권한은 기존 문서와 동일하게 유지한다.
-
----
-
-# 11. 템플릿과의 연결
-
-C단계에서는 템플릿 자체의 고도화보다 문서가 템플릿에서 생성될 수 있는 구조를 준비한다.
-
-## 연결 기준
-
-* 문서는 선택된 템플릿 ID를 가질 수 있다.
-* 템플릿에서 생성된 문서는 일반 문서처럼 수정 가능하다.
-* 템플릿 변경이 기존 문서 본문을 자동 변경하지 않는다.
-* D단계 AI 문서 생성에서 템플릿을 문서 구조로 활용한다.
+* Triggered by elapsed time or significant change.
+* Display auto-save state to the user.
+* On auto-save failure, prompt the user to do a manual save.
+* Not every auto-save produces a version record.
 
 ---
 
-# 12. AI 문서 생성과의 연결
+## 9.5 Version policy
 
-D단계에서 AI 생성 결과를 문서로 저장하기 위해 C단계에서 다음 구조를 준비한다.
+### Principles
 
-* 생성 방식 필드
-* 원본 AI 요청 ID 연결 여지
-* 생성 결과를 편집기로 넘기는 흐름
-* AI 생성 초안의 Draft 저장
-* 참고 자료 출처 표시 영역 여지
-
----
-
-# 13. 검색과의 연결
-
-F단계 사내 지식 검색을 위해 C단계 문서 데이터는 검색 가능한 형태를 고려해야 한다.
-
-## 검색 준비 항목
-
-* 제목
-* 본문
-* 문서 유형
-* 태그
-* 작성자
-* 소유 팀
-* 공유 범위
-* 생성일
-* 수정일
-
-검색 인덱스 구현 자체는 F단계에서 다룬다.
+* Versions are written for meaningful save events.
+* Restore writes a new version rather than overwriting in place.
+* Each version records the modifier and timestamp.
+* Version retention duration is adjustable through operational policy in later phases.
 
 ---
 
-# 14. 오류 및 예외 처리
+# 10. Delete and archive policy
 
-## 14.1 문서 저장 오류
+## 10.1 Delete approach
 
-* 네트워크 오류
-* 권한 만료
-* 세션 만료
-* 문서가 삭제된 상태
-* 동시 수정 충돌
+In MVP, archive / trash semantics are preferred over immediate physical deletion.
 
-### UX 기준
+### Recommended approach
 
-* 작성 중인 내용이 사라지지 않아야 한다.
-* 사용자가 재시도할 수 있어야 한다.
-* 저장되지 않은 상태를 명확히 표시해야 한다.
+* User-initiated delete moves the document to the Deleted state.
+* Hidden from the standard list.
+* Recoverable for a defined retention period.
+* Admin or owner can recover.
 
 ---
 
-## 14.2 문서 접근 오류
+## 10.2 Archive handling
 
-* 권한 없음
-* 존재하지 않는 문서
-* 삭제된 문서
-* 다른 조직의 문서
+Archive hides documents that are no longer actively used.
 
-### UX 기준
+### Rules
 
-* 보안상 불필요한 문서 정보를 노출하지 않는다.
-* 홈 또는 문서 목록으로 돌아가는 경로를 제공한다.
-* 권한 요청 기능은 MVP 이후로 미룰 수 있다.
+* Set the document to the Archived state.
+* Available via filter in search and list views.
+* Permissions match the original document.
 
 ---
 
-## 14.3 공유 설정 오류
+# 11. Template integration
 
-* 존재하지 않는 사용자 또는 팀
-* 권한 없는 공유 시도
-* 자기 자신 권한 제거 시도
-* Admin 권한 정책 위반
+In Phase C, the focus is on preparing the structure for documents to be created from a template, not on advancing the template feature itself.
+
+## Integration rules
+
+* A document may carry a selected template ID.
+* Documents created from a template are editable like any other document.
+* Changing a template does not retroactively change existing document bodies.
+* In Phase D (AI document generation), templates are used as the document structure.
 
 ---
 
-# 15. 테스트 계획
+# 12. AI document generation integration
 
-## 15.1 핵심 테스트 시나리오
+To support storing AI-generated output as a document in Phase D, Phase C prepares the following structure.
 
-| 시나리오 | 검증 내용 |
+* Creation-method field
+* Hook for linking the originating AI request ID
+* Flow that hands generated output into the editor
+* Draft save for AI-generated drafts
+* Layout space for displaying source material citations
+
+---
+
+# 13. Search integration
+
+For Phase F (in-house knowledge search), Phase C document data must be search-ready.
+
+## Search-prep elements
+
+* Title
+* Body
+* Document type
+* Tags
+* Author
+* Owning team
+* Share scope
+* Created at
+* Updated at
+
+The search index itself is implemented in Phase F.
+
+---
+
+# 14. Errors and exceptions
+
+## 14.1 Document save errors
+
+* Network error
+* Permission expired
+* Session expired
+* Document already deleted
+* Concurrent-edit conflict
+
+### UX rules
+
+* The user's in-progress content must not be lost.
+* The user must be able to retry.
+* The unsaved state must be clearly visible.
+
+---
+
+## 14.2 Document access errors
+
+* No permission
+* Document does not exist
+* Document is deleted
+* Document belongs to another organization
+
+### UX rules
+
+* Do not leak unnecessary document existence info on denial.
+* Provide a path back to home or document list.
+* Permission-request flow can be deferred past MVP.
+
+---
+
+## 14.3 Share-settings errors
+
+* Non-existent user or team
+* Share attempt without permission
+* Self-permission-removal attempt
+* Admin-policy violation
+
+---
+
+# 15. Test plan
+
+Phase C testing follows the Phase B closure pattern: items are split into **CI-gated** and **staging / manual smoke**. CI-gated items run on every PR via GitHub Actions. Staging / manual smoke items are confirmed once after a staging deploy.
+
+---
+
+## 15.1 CI-gated scenarios (Vitest unit + integration)
+
+The following scenarios run on every PR via `pnpm test` + `pnpm test:integration`.
+
+| Scenario | Verification |
 | --- | --- |
-| 새 문서 작성 | 제목/본문 입력 후 저장 |
-| 초안 저장 | 빈 본문 또는 제목 없는 문서 저장 |
-| 문서 목록 | 접근 가능한 문서만 표시 |
-| 문서 상세 | 문서 내용과 메타데이터 표시 |
-| 문서 수정 | 수정 후 저장 및 변경 반영 |
-| 공유 설정 | 팀/사용자 공유 후 접근 가능 |
-| 접근 제한 | 권한 없는 문서 접근 차단 |
-| 버전 생성 | 저장 시 버전 기록 생성 |
-| 버전 복원 | 이전 버전으로 복원 가능 |
-| 삭제 처리 | 삭제 후 일반 목록에서 제외 |
+| Create new document | Save succeeds with title and body |
+| Draft save | Save succeeds with empty body or missing title |
+| Document list | Only documents the user has access to are returned |
+| Document detail | Body and metadata returned correctly |
+| Document edit | Edit then save reflects changes |
+| Share settings | After team / user share, the target gains access |
+| Access denied | Unpermitted access returns `NOT_FOUND` (default) or `FORBIDDEN(reason_code)` |
+| Version creation | Explicit save creates a version record |
+| Version restore | Previous version can be restored; restore itself is recorded as a new version |
+| Delete handling | After Deleted state transition, document is excluded from the standard list |
 
 ---
 
-## 15.2 권한 테스트
+## 15.2 CI-gated permission tests
 
-* Viewer가 문서를 작성할 수 없는지 확인
-* Editor가 본인 또는 공유받은 문서를 수정할 수 있는지 확인
-* 권한 없는 문서가 목록에 표시되지 않는지 확인
-* 직접 URL 접근이 차단되는지 확인
-* Manager가 팀 문서를 관리할 수 있는지 확인
-* Admin 정책에 따라 문서 접근이 처리되는지 확인
+Permission branches are written on top of the Phase B `@notive/permissions` module. The following cases are covered as integration tests.
 
----
-
-## 15.3 저장 테스트
-
-* 수동 저장 성공
-* 수동 저장 실패
-* 자동 저장 성공
-* 자동 저장 실패 후 재시도
-* 세션 만료 중 저장 시도
-* 동시 수정 충돌
+* Viewer cannot create documents.
+* Editor can edit documents they own or have been shared with.
+* Documents without permission do not appear in the list.
+* Direct URL access is blocked.
+* Manager can manage team documents.
+* Admin does not have implicit pass-through to all document bodies; body access follows the standard rules (Organization-public or explicit share) per §8.4 / Phase A §15.
+* Direct access to a document ID belonging to another organization returns the same `NOT_FOUND` response (no organization-boundary leak).
 
 ---
 
-# 16. 완료 기준
+## 15.3 CI-gated save tests
 
-C단계는 다음 기준을 만족하면 완료로 본다.
-
-* Editor 이상 사용자가 새 문서를 작성하고 저장할 수 있다.
-* 사용자가 접근 가능한 문서 목록을 확인할 수 있다.
-* 사용자가 문서 상세를 열람할 수 있다.
-* 권한 있는 사용자가 문서를 수정할 수 있다.
-* 문서의 공유 범위를 설정할 수 있다.
-* 권한 없는 사용자는 문서를 조회하거나 수정할 수 없다.
-* 문서 저장 시 변경 이력이 남는다.
-* 이전 버전을 확인하고 복원할 수 있다.
-* 삭제 또는 보관 처리된 문서는 일반 목록에서 제외된다.
-* D단계 AI 생성 결과를 문서로 저장할 수 있는 구조가 준비되어 있다.
+* Manual save success.
+* Manual save failure (write rejected, permission expired) does not lose in-progress content.
+* After auto-save failure, manual save can recover.
+* Save attempts during expired sessions are safely rejected.
+* Concurrent-edit conflict surfaces a notice.
 
 ---
 
-# 17. 주요 리스크 및 대응
+## 15.4 Audit record verification (CI-gated)
 
-| 리스크 | 설명 | 대응 방향 |
+Phase C mutating actions reuse the Phase B audit writer skeleton (`apps/web/lib/audit`).
+
+* Success events for create / update / share-change / delete (Deleted state transition) / restore are written to `activity_logs`.
+* Each row populates `actor_user_id`, `target_type=document`, `target_id`, `action`, `result`, `metadata`, `created_at`.
+* Failure events and population of `ip_address` / `user_agent` are deferred to Phase G as in Phase B; the schema is not extended.
+* Writer failure is best-effort and does not break the user-facing action.
+
+---
+
+## 15.5 Staging / manual smoke items
+
+The following are not adequately covered by CI (`embedded-postgres`, in-memory adapters), so they are confirmed once on staging.
+
+* Concurrent-edit conflict UX with real multi-user sessions (real input patterns mixing auto-save and manual save).
+* Save-state display under combined auto-save cadence and network latency.
+* Cleanup-worker dry-run output for documents that have been archived / deleted past the retention window (real cron triggers in destructive mode are activated in Phase D).
+* Share-notification wires (notification channels themselves arrive after Phase D; in Phase C the smoke check only verifies that the wire is intact).
+
+---
+
+# 16. Done criteria
+
+Phase C is done when **all** of the following are true.
+
+## 16.1 Functional (CI-gated)
+
+* Editor and above users can create and save new documents.
+* Users can view the documents they have access to in the list.
+* Users can view document details.
+* Users with edit permission can edit documents.
+* Users can configure share scope (Private / Team / Organization / Specific Users).
+* Users without permission cannot view or edit; responses follow the `NOT_FOUND` default / `FORBIDDEN(reason_code)` exception policy.
+* Saving a document writes a change-history record (DocumentVersion).
+* Previous versions can be reviewed and restored.
+* Deleted or archived documents are excluded from the standard list.
+* The §15.1 – §15.4 scenarios all pass via `pnpm test` + `pnpm test:integration`.
+
+## 16.2 Integration with Phase B (CI-gated)
+
+* All document permission decisions go through the `@notive/permissions` module (endpoints do not bypass it via direct Prisma `where` clauses).
+* Success events for document mutating actions are written to `activity_logs` through the `apps/web/lib/audit` writer (no new columns).
+* Document-owning organization and share-scope decisions operate under the 1-active-organization / 1-primary-team assumption.
+* Phase C document flows do not directly modify membership role / status. When document ownership transfer or share-manager assignment is coupled with a membership change flow, Phase B Last-Admin protection is not bypassed.
+
+## 16.3 Forward-readiness
+
+* The structure for storing Phase D AI-generated output as a document (creation-method field, Draft save, editor entry flow) is in place.
+* The metadata Phase F search will use (title, body, type, tags, author, owning team, share scope, dates) is fully present on Document / DocumentTag / DocumentShare.
+
+## 16.4 Staging / manual smoke
+
+* The §15.5 staging / manual smoke items are confirmed once after a staging deploy and the result is recorded outside the per-PR CI loop.
+
+---
+
+# 17. Key risks and mitigations
+
+| Risk | Description | Mitigation |
 | --- | --- | --- |
-| 편집기 복잡도 증가 | 고급 편집 기능을 초기에 많이 넣으면 일정 지연 가능 | 기본 문서 편집에 집중 |
-| 권한 누락 | 문서가 잘못 노출될 수 있음 | 목록, 상세, 편집, 공유 모든 경로에서 권한 검사 |
-| 자동 저장 충돌 | 자동 저장과 수동 저장이 충돌할 수 있음 | 저장 상태와 버전 생성 기준 분리 |
-| 버전 데이터 증가 | 문서 수정마다 버전이 많아질 수 있음 | 의미 있는 저장 단위 중심으로 버전 생성 |
-| 공유 정책 혼란 | 사용자가 공유 범위를 이해하지 못할 수 있음 | 공유 UI를 단순화하고 기본값 명확화 |
-| 삭제 복구 요구 | 삭제 후 복구 요청이 발생할 수 있음 | 물리 삭제보다 상태 변경 우선 |
+| Editor complexity creep | Adding too many advanced editor features early can delay schedule | Focus on basic document editing |
+| Permission gap | A document could be exposed to the wrong audience | Apply permission checks across list, detail, edit, and share paths |
+| Auto-save conflict | Auto-save and manual save can collide | Separate save state from version-creation rules |
+| Version data growth | Each edit could pile up versions | Create versions only at meaningful save boundaries |
+| Share-scope confusion | Users may not understand share scopes | Simplify the share UI and clarify defaults |
+| Delete-recovery demand | Users may request recovery after delete | Prefer state changes over physical deletion |
 
 ---
 
-# 18. D단계 연결
+# 18. Phase D handoff
 
-C단계 완료 후 D단계 AI 문서 생성 구현으로 넘어간다.
+Phase C completion leads into Phase D (AI document generation).
 
-D단계 착수 전 준비되어야 할 항목은 다음과 같다.
+The following must be in place before Phase D starts.
 
-* 문서 생성 API 또는 저장 흐름
-* 문서 편집 화면
-* Draft 상태 문서 저장
-* 문서 유형
-* 템플릿 연결 필드
-* 문서 공유 권한
-* 문서 버전 기록
-* AI 생성 결과를 문서 본문으로 반영할 수 있는 구조
-
+* Document creation API or save flow
+* Document edit screen
+* Draft document save
+* Document type
+* Template-link field
+* Document share permission
+* Document version history
+* Structure to flow AI-generated output into the document body
