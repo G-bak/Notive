@@ -57,6 +57,7 @@ vi.mock("@/lib/session", () => ({
 import { createDocument } from "../../apps/web/lib/services/document";
 import { createTag } from "../../apps/web/lib/services/document-tag";
 import * as docsRoute from "../../apps/web/app/api/organizations/[id]/documents/route";
+import * as docByIdRoute from "../../apps/web/app/api/organizations/[id]/documents/[documentId]/route";
 import * as tagsRoute from "../../apps/web/app/api/organizations/[id]/documents/tags/route";
 import * as tagDeleteRoute from "../../apps/web/app/api/organizations/[id]/documents/tags/[tagId]/route";
 import * as docTagsPutRoute from "../../apps/web/app/api/organizations/[id]/documents/[documentId]/tags/route";
@@ -401,6 +402,233 @@ describe("PUT /documents/[documentId]/tags", () => {
       `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/tags`,
       { id: s.orgId, documentId: doc.id },
       { method: "PUT", body: JSON.stringify({ tagIds: [tag.id] }) },
+    );
+    expect(r.status).toBe(404);
+    expect(r.body).toEqual({ error: "NOT_FOUND" });
+  });
+});
+
+// ---------------------------------------------------------------------
+// documents core routes — Phase C step 8
+//   POST   /organizations/[id]/documents
+//   GET    /organizations/[id]/documents/[documentId]
+//   PATCH  /organizations/[id]/documents/[documentId]
+//   DELETE /organizations/[id]/documents/[documentId]
+//
+// Smoke matrix (Codex Phase C step 8 directive):
+//   - happy path 200 / 201
+//   - Viewer create 403
+//   - no-view detail 404 (envelope must have NO reason_code)
+//   - view-only patch / delete 403
+// ---------------------------------------------------------------------
+
+describe("POST /organizations/[id]/documents", () => {
+  it("happy path: Editor returns 201 with document envelope", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const r = await call(
+      docsRoute.POST,
+      `https://test.local/api/organizations/${s.orgId}/documents`,
+      { id: s.orgId },
+      {
+        method: "POST",
+        body: JSON.stringify({
+          title: "smoke-create",
+          documentType: "general",
+          visibility: "Private",
+        }),
+      },
+    );
+    expect(r.status).toBe(201);
+    expect(r.body).toMatchObject({
+      organizationId: s.orgId,
+      title: "smoke-create",
+      ownerUserId: s.editor.id,
+      status: "Draft",
+      visibility: "Private",
+    });
+  });
+
+  it("Viewer returns 403 FORBIDDEN(document_create_not_allowed)", async () => {
+    const s = await setup();
+    hoisted.state.user = s.viewer;
+    const r = await call(
+      docsRoute.POST,
+      `https://test.local/api/organizations/${s.orgId}/documents`,
+      { id: s.orgId },
+      {
+        method: "POST",
+        body: JSON.stringify({
+          title: "viewer-blocked",
+          documentType: "general",
+        }),
+      },
+    );
+    expect(r.status).toBe(403);
+    expect(r.body).toMatchObject({
+      error: "FORBIDDEN",
+      reason_code: "document_create_not_allowed",
+    });
+  });
+});
+
+describe("GET /organizations/[id]/documents/[documentId]", () => {
+  it("happy path: owner Editor returns 200 with document + permission", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "owner-view",
+      documentType: "general",
+      visibility: "Private",
+    });
+    const r = await call(
+      docByIdRoute.GET,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}`,
+      { id: s.orgId, documentId: doc.id },
+    );
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({
+      id: doc.id,
+      ownerUserId: s.editor.id,
+      permission: "Manage",
+    });
+  });
+
+  it("no-view actor returns 404 NOT_FOUND envelope without reason_code", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "private-detail",
+      documentType: "general",
+      visibility: "Private",
+    });
+    hoisted.state.user = s.editorB;
+    const r = await call(
+      docByIdRoute.GET,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}`,
+      { id: s.orgId, documentId: doc.id },
+    );
+    expect(r.status).toBe(404);
+    expect(r.body).toEqual({ error: "NOT_FOUND" }); // no reason_code
+  });
+
+  it("cross-org actor returns 404 NOT_FOUND envelope without reason_code", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "cross-org-detail",
+      documentType: "general",
+      visibility: "Organization",
+    });
+    hoisted.state.user = s.outsider;
+    const r = await call(
+      docByIdRoute.GET,
+      `https://test.local/api/organizations/${s.outsiderOrgId}/documents/${doc.id}`,
+      { id: s.outsiderOrgId, documentId: doc.id },
+    );
+    expect(r.status).toBe(404);
+    expect(r.body).toEqual({ error: "NOT_FOUND" });
+  });
+});
+
+describe("PATCH /organizations/[id]/documents/[documentId]", () => {
+  it("happy path: owner Editor returns 200 with updated title", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "patch-me",
+      documentType: "general",
+      visibility: "Private",
+    });
+    const r = await call(
+      docByIdRoute.PATCH,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}`,
+      { id: s.orgId, documentId: doc.id },
+      { method: "PATCH", body: JSON.stringify({ title: "patched-title" }) },
+    );
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ id: doc.id, title: "patched-title" });
+  });
+
+  it("view-only actor returns 403 FORBIDDEN(document_edit_not_allowed)", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "org-shared",
+      documentType: "general",
+      visibility: "Organization",
+    });
+    hoisted.state.user = s.editorB; // org-public => View only on someone else's doc
+    const r = await call(
+      docByIdRoute.PATCH,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}`,
+      { id: s.orgId, documentId: doc.id },
+      { method: "PATCH", body: JSON.stringify({ title: "hijacked" }) },
+    );
+    expect(r.status).toBe(403);
+    expect(r.body).toMatchObject({
+      error: "FORBIDDEN",
+      reason_code: "document_edit_not_allowed",
+    });
+  });
+});
+
+describe("DELETE /organizations/[id]/documents/[documentId]", () => {
+  it("happy path: owner Editor returns 200 with soft-deleted envelope", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "delete-me",
+      documentType: "general",
+      visibility: "Private",
+    });
+    const r = await call(
+      docByIdRoute.DELETE,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}`,
+      { id: s.orgId, documentId: doc.id },
+      { method: "DELETE" },
+    );
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ id: doc.id, status: "Deleted" });
+    expect((r.body as { deletedAt: string | null }).deletedAt).not.toBeNull();
+  });
+
+  it("view-only actor returns 403 FORBIDDEN(document_manage_not_allowed)", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "delete-guarded",
+      documentType: "general",
+      visibility: "Organization",
+    });
+    hoisted.state.user = s.editorB; // View only via org visibility
+    const r = await call(
+      docByIdRoute.DELETE,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}`,
+      { id: s.orgId, documentId: doc.id },
+      { method: "DELETE" },
+    );
+    expect(r.status).toBe(403);
+    expect(r.body).toMatchObject({
+      error: "FORBIDDEN",
+      reason_code: "document_manage_not_allowed",
+    });
+  });
+
+  it("no-view actor returns 404 NOT_FOUND envelope without reason_code", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "delete-private",
+      documentType: "general",
+      visibility: "Private",
+    });
+    hoisted.state.user = s.editorB;
+    const r = await call(
+      docByIdRoute.DELETE,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}`,
+      { id: s.orgId, documentId: doc.id },
+      { method: "DELETE" },
     );
     expect(r.status).toBe(404);
     expect(r.body).toEqual({ error: "NOT_FOUND" });
