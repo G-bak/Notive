@@ -31,6 +31,12 @@ export type KnownReasonCode =
   | "manager_cannot_invite"
   | "last_admin_protection"
   | "account_not_active"
+  // FORBIDDEN — Phase C document feature checks. Used when the actor
+  // already has at least View on the document but the requested action
+  // requires a higher permission. Pure absence of view stays NOT_FOUND
+  // (Phase A §15 — no resource-existence leak).
+  | "document_edit_not_allowed"
+  | "document_manage_not_allowed"
   // CONFLICT
   | "already_in_organization"
   | "slug_taken"

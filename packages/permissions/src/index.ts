@@ -15,3 +15,12 @@ export {
   requireMembership,
   roleAtLeast,
 } from "./checks.js";
+
+export {
+  evaluateDocumentPermission,
+  permissionAtLeast,
+  requireDocumentEdit,
+  requireDocumentManage,
+  requireDocumentView,
+} from "./documents.js";
+export type { DocumentActor, DocumentContext, DocumentShareGrant } from "./documents.js";
