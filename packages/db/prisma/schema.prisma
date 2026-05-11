@@ -110,6 +110,38 @@ enum DocumentSharePermission {
   Manage
 }
 
+// Phase D step 1: AI request / result / reference / usage-log enums.
+// Source: docs/database/notive-database-design-v1.0.md §9 and
+// docs/implementation/notive-implementation-plan-d-ai-document-generation-v1.0.md §7.
+enum AiRequestStatus {
+  Pending
+  Processing
+  Completed
+  Failed
+  Cancelled
+}
+
+enum AiResultStatus {
+  Generated
+  Selected
+  Saved
+  Discarded
+  Failed
+}
+
+enum AiReferenceTargetType {
+  Document
+  Template
+  DiaryEntry
+  Todo
+}
+
+enum AiUsageStatus {
+  Success
+  Failed
+  Cancelled
+}
+
 // ---------------------------------------------------------------------
 // Auth / user tables (DB design §5)
 // ---------------------------------------------------------------------
@@ -148,6 +180,9 @@ model User {
   documentTagsCreated   DocumentTag[]         @relation("DocumentTagCreatedBy")
   documentFavorites     DocumentFavorite[]
   documentViewHistories DocumentViewHistory[]
+
+  aiRequestsRequested AiRequest[]  @relation("AiRequestRequestedBy")
+  aiUsageLogs         AiUsageLog[]
 
   @@index([status])
   @@map("users")
@@ -220,6 +255,11 @@ model Organization {
   documentTagLinks      DocumentTagLink[]
   documentFavorites     DocumentFavorite[]
   documentViewHistories DocumentViewHistory[]
+
+  aiRequests   AiRequest[]
+  aiResults    AiResult[]
+  aiReferences AiReference[]
+  aiUsageLogs  AiUsageLog[]
 
   @@index([status])
   @@map("organizations")
@@ -353,11 +393,19 @@ model ActivityLog {
 // without an extra join. The application layer is responsible for
 // keeping `organization_id` consistent with the parent document.
 //
-// `templateId` and `aiRequestId` on `Document` are nullable Uuid
-// scalars without a Prisma `@relation`. The corresponding tables
-// (`templates`, `ai_requests`) land in Phase D; the FK constraints
-// are added then. Phase C keeps the columns reserved so the document
-// shape does not change later.
+// `templateId` on `Document` remains a nullable Uuid scalar without a
+// Prisma `@relation`. The `templates` table lands later in Phase D;
+// its FK is added then.
+//
+// `aiRequestId` was reserved in Phase C as a bare Uuid. Phase D step 1
+// adds a single-column FK → `ai_requests(id)` with `onDelete: SetNull`
+// so the 90-day AI metadata retention cleanup (DB design §15.3) can
+// drop `ai_requests` rows without cascading the deletion to the
+// `documents` they generated. Cross-org integrity for `ai_request_id`
+// is enforced at the service layer (same pattern as `owner_user_id`).
+// A composite FK on `(ai_request_id, organization_id)` was rejected
+// because Prisma's `SetNull` cannot null a composite where any column
+// is `NOT NULL` (see `owner_team_id` comment in this model).
 // ---------------------------------------------------------------------
 
 model Document {
@@ -390,12 +438,17 @@ model Document {
   /// nulls owner_team_id before any team hard-delete (teams are
   /// normally soft-deleted via deletedAt anyway).
   ownerTeam    Team?        @relation("DocumentOwnerTeam", fields: [ownerTeamId, organizationId], references: [id, organizationId], onDelete: NoAction, onUpdate: NoAction)
+  /// Phase D step 1: single-column FK to ai_requests. SetNull lets the
+  /// 90-day AI metadata cleanup drop the parent without deleting the
+  /// document. Service layer enforces org match.
+  aiRequest    AiRequest?   @relation("DocumentAiRequest", fields: [aiRequestId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
-  versions      DocumentVersion[]
-  shares        DocumentShare[]
-  tagLinks      DocumentTagLink[]
-  favorites     DocumentFavorite[]
-  viewHistories DocumentViewHistory[]
+  versions       DocumentVersion[]
+  shares         DocumentShare[]
+  tagLinks       DocumentTagLink[]
+  favorites      DocumentFavorite[]
+  viewHistories  DocumentViewHistory[]
+  savedAiResults AiResult[]            @relation("AiResultSavedDocument")
 
   /// Composite unique on (id, organization_id) so document children
   /// can declare a composite FK on (document_id, organization_id) and
@@ -527,4 +580,149 @@ model DocumentViewHistory {
   @@index([organizationId, userId, viewedAt])
   @@index([documentId])
   @@map("document_view_histories")
+}
+
+// ---------------------------------------------------------------------
+// AI metadata tables (DB design §9). Phase D step 1.
+//
+// Body-retention policy (Phase A §15 / docs/ai/notive-ai-generation-
+// policy-v1.0.md §12):
+//   - ai_requests and ai_results store metadata only. Prompt body and
+//     response body are NEVER stored in these tables. There is no
+//     `request_text`, `prompt`, `content`, or `response` column.
+//   - Preview / edit-stage body lives in session-bound short-term
+//     storage (Redis etc.); persistence happens only via the `documents`
+//     table when the user explicitly saves.
+//   - opt-in "report" flow stores a single request's body in
+//     `ai_request_payloads` for 30 days — that table is added in a
+//     later Phase D step, not here.
+//
+// Organization integrity:
+//   - ai_requests has a composite UNIQUE (id, organization_id) so
+//     ai_results / ai_references can declare composite FKs to it and
+//     have Postgres reject cross-org mixes at the DB layer (same
+//     pattern as documents in Phase C).
+//
+// Retention: ai_requests / ai_results / ai_references / ai_usage_logs
+// metadata is kept 90 days (DB design §15.3). A future background job
+// will delete by retain-window; documents linked via
+// `documents.ai_request_id` survive because that FK is SetNull.
+// ---------------------------------------------------------------------
+
+model AiRequest {
+  id                String          @id @default(uuid()) @db.Uuid
+  organizationId    String          @map("organization_id") @db.Uuid
+  requestedByUserId String?         @map("requested_by_user_id") @db.Uuid
+  documentType      String          @map("document_type")
+  /// Forward reference to Phase D `templates`. FK added when that table lands.
+  templateId        String?         @map("template_id") @db.Uuid
+  /// Structured generation tag. Free-text prompt body is NOT stored.
+  purpose           String?
+  /// Structured generation tag. Free-text prompt body is NOT stored.
+  audience          String?
+  /// Structured generation tag. Free-text prompt body is NOT stored.
+  tone              String?
+  status            AiRequestStatus @default(Pending)
+  errorCode         String?         @map("error_code")
+  latencyMs         Int?            @map("latency_ms")
+  tokenCountInput   Int?            @map("token_count_input")
+  tokenCountOutput  Int?            @map("token_count_output")
+  resultSaved       Boolean         @default(false) @map("result_saved")
+  startedAt         DateTime?       @map("started_at")
+  completedAt       DateTime?       @map("completed_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requestedBy  User?        @relation("AiRequestRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  results    AiResult[]
+  references AiReference[]
+  usageLogs  AiUsageLog[]
+  documents  Document[]    @relation("DocumentAiRequest")
+
+  /// Composite unique on (id, organization_id) so ai_results /
+  /// ai_references can declare composite FKs and have Postgres
+  /// enforce same-organization parent/child at the DB layer.
+  @@unique([id, organizationId])
+  @@index([organizationId, requestedByUserId, createdAt])
+  @@index([organizationId, status])
+  @@map("ai_requests")
+}
+
+model AiResult {
+  id              String         @id @default(uuid()) @db.Uuid
+  aiRequestId     String         @map("ai_request_id") @db.Uuid
+  organizationId  String         @map("organization_id") @db.Uuid
+  status          AiResultStatus @default(Generated)
+  /// Inverse pointer set only when the user explicitly saves the
+  /// result as a `documents` row. Composite FK on
+  /// (saved_document_id, organization_id) so Postgres rejects an
+  /// ai_result that points at a foreign-org document. Hard-delete of a
+  /// document is not the normal path (Phase C uses soft-delete via
+  /// status=Deleted + deletedAt); NoAction blocks an accidental hard
+  /// delete that would orphan this pointer, and the application is
+  /// expected to null `saved_document_id` before any operational hard
+  /// delete (same operational contract as documents.owner_team_id).
+  savedDocumentId String?        @map("saved_document_id") @db.Uuid
+  errorCode       String?        @map("error_code")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  /// Composite FK on (ai_request_id, organization_id) → ai_requests.
+  /// Enforces same-organization at the DB layer.
+  aiRequest     AiRequest    @relation(fields: [aiRequestId, organizationId], references: [id, organizationId], onDelete: Cascade, onUpdate: Cascade)
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  savedDocument Document?    @relation("AiResultSavedDocument", fields: [savedDocumentId, organizationId], references: [id, organizationId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([aiRequestId])
+  @@index([organizationId, status])
+  @@map("ai_results")
+}
+
+model AiReference {
+  id             String                @id @default(uuid()) @db.Uuid
+  aiRequestId    String                @map("ai_request_id") @db.Uuid
+  organizationId String                @map("organization_id") @db.Uuid
+  targetType     AiReferenceTargetType @map("target_type")
+  targetId       String                @map("target_id") @db.Uuid
+  /// Snapshot of the target's title at request time. Used so the audit
+  /// trail survives even if the target is later renamed or deleted.
+  targetTitle    String?               @map("target_title")
+  /// Snapshot of whether the requesting user had View on the target at
+  /// the time of generation. The service layer is responsible for
+  /// filtering out unviewable references BEFORE recording — this column
+  /// is the audit record, not the gate.
+  accessAllowed  Boolean               @map("access_allowed")
+  createdAt      DateTime              @default(now()) @map("created_at")
+
+  /// Composite FK on (ai_request_id, organization_id) → ai_requests.
+  aiRequest    AiRequest    @relation(fields: [aiRequestId, organizationId], references: [id, organizationId], onDelete: Cascade, onUpdate: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([aiRequestId, targetType, targetId])
+  @@index([organizationId, targetType])
+  @@map("ai_references")
+}
+
+model AiUsageLog {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  userId         String?       @map("user_id") @db.Uuid
+  /// Sibling reference (not parent-child). SetNull so usage history
+  /// survives 90-day metadata cleanup of ai_requests for billing /
+  /// quality analysis (DB design §15.2 retention).
+  aiRequestId    String?       @map("ai_request_id") @db.Uuid
+  documentType   String        @map("document_type")
+  status         AiUsageStatus
+  durationMs     Int?          @map("duration_ms")
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  aiRequest    AiRequest?   @relation(fields: [aiRequestId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, userId])
+  @@map("ai_usage_logs")
 }
