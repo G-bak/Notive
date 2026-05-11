@@ -65,6 +65,9 @@ import * as versionRestoreRoute from "../../apps/web/app/api/organizations/[id]/
 import * as tagsRoute from "../../apps/web/app/api/organizations/[id]/documents/tags/route";
 import * as tagDeleteRoute from "../../apps/web/app/api/organizations/[id]/documents/tags/[tagId]/route";
 import * as docTagsPutRoute from "../../apps/web/app/api/organizations/[id]/documents/[documentId]/tags/route";
+import * as favoritesRoute from "../../apps/web/app/api/organizations/[id]/documents/favorites/route";
+import * as favoriteRoute from "../../apps/web/app/api/organizations/[id]/documents/[documentId]/favorite/route";
+import * as recentRoute from "../../apps/web/app/api/organizations/[id]/documents/recent/route";
 
 import { createMembership, createOrganization, createTeam, createUser } from "./src/helpers.js";
 
@@ -950,5 +953,251 @@ describe("POST /organizations/[id]/documents/[documentId]/versions/[versionId]/r
     );
     expect(r.status).toBe(404);
     expect(r.body).toEqual({ error: "NOT_FOUND" });
+  });
+});
+
+// ---------------------------------------------------------------------
+// favorites + recent routes — Phase C step 10
+//   GET    /organizations/[id]/documents/favorites
+//   PUT    /organizations/[id]/documents/[documentId]/favorite
+//   DELETE /organizations/[id]/documents/[documentId]/favorite
+//   GET    /organizations/[id]/documents/recent
+//
+// Smoke matrix (Codex Phase C step 10 directive):
+//   - happy + per-user isolation for the two list routes
+//   - PUT/DELETE pin the actual response envelope and idempotency
+//   - PUT/DELETE on a no-view Private document return 404 NOT_FOUND
+//     with NO reason_code — the service layer treats this as an
+//     existence-leak guard, not FORBIDDEN
+//   - recent depends on the detail GET handler having recorded a
+//     view-history row (recordDocumentView is awaited inside
+//     getDocument)
+// ---------------------------------------------------------------------
+
+describe("GET /organizations/[id]/documents/favorites", () => {
+  it("happy path: returns 200 with the user's favorite document", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "fav-listed",
+      documentType: "general",
+      visibility: "Private",
+    });
+    const put = await call(
+      favoriteRoute.PUT,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/favorite`,
+      { id: s.orgId, documentId: doc.id },
+      { method: "PUT" },
+    );
+    expect(put.status).toBe(200);
+
+    const r = await call(
+      favoritesRoute.GET,
+      `https://test.local/api/organizations/${s.orgId}/documents/favorites`,
+      { id: s.orgId },
+    );
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({
+      favorites: expect.arrayContaining([
+        expect.objectContaining({
+          document: expect.objectContaining({ id: doc.id, title: "fav-listed" }),
+        }),
+      ]),
+    });
+  });
+
+  it("per-user isolated: editorB does not see editor's favorite", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    // Visibility=Organization so editorB still has View on the doc;
+    // we are pinning that the favorites list is keyed by userId, not
+    // that no-view filters it out.
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "fav-isolation",
+      documentType: "general",
+      visibility: "Organization",
+    });
+    await call(
+      favoriteRoute.PUT,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/favorite`,
+      { id: s.orgId, documentId: doc.id },
+      { method: "PUT" },
+    );
+
+    hoisted.state.user = s.editorB;
+    const r = await call(
+      favoritesRoute.GET,
+      `https://test.local/api/organizations/${s.orgId}/documents/favorites`,
+      { id: s.orgId },
+    );
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ favorites: [] });
+  });
+});
+
+describe("PUT /organizations/[id]/documents/[documentId]/favorite", () => {
+  it("happy + idempotent: returns 200 with favorite envelope; second call returns same id", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "fav-put",
+      documentType: "general",
+      visibility: "Private",
+    });
+    const first = await call(
+      favoriteRoute.PUT,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/favorite`,
+      { id: s.orgId, documentId: doc.id },
+      { method: "PUT" },
+    );
+    expect(first.status).toBe(200);
+    expect(first.body).toMatchObject({
+      userId: s.editor.id,
+      organizationId: s.orgId,
+      documentId: doc.id,
+    });
+    const firstId = (first.body as { id: string }).id;
+
+    const second = await call(
+      favoriteRoute.PUT,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/favorite`,
+      { id: s.orgId, documentId: doc.id },
+      { method: "PUT" },
+    );
+    expect(second.status).toBe(200);
+    expect((second.body as { id: string }).id).toBe(firstId);
+  });
+
+  it("no-view actor on Private document returns 404 NOT_FOUND envelope", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "fav-put-private",
+      documentType: "general",
+      visibility: "Private",
+    });
+    hoisted.state.user = s.editorB;
+    const r = await call(
+      favoriteRoute.PUT,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/favorite`,
+      { id: s.orgId, documentId: doc.id },
+      { method: "PUT" },
+    );
+    expect(r.status).toBe(404);
+    expect(r.body).toEqual({ error: "NOT_FOUND" });
+  });
+});
+
+describe("DELETE /organizations/[id]/documents/[documentId]/favorite", () => {
+  it("happy + idempotent: returns 204 with no body; second call still 204", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "fav-delete",
+      documentType: "general",
+      visibility: "Private",
+    });
+    await call(
+      favoriteRoute.PUT,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/favorite`,
+      { id: s.orgId, documentId: doc.id },
+      { method: "PUT" },
+    );
+
+    const first = await call(
+      favoriteRoute.DELETE,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/favorite`,
+      { id: s.orgId, documentId: doc.id },
+      { method: "DELETE" },
+    );
+    expect(first.status).toBe(204);
+    expect(first.body).toBeNull();
+
+    const second = await call(
+      favoriteRoute.DELETE,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/favorite`,
+      { id: s.orgId, documentId: doc.id },
+      { method: "DELETE" },
+    );
+    expect(second.status).toBe(204);
+    expect(second.body).toBeNull();
+  });
+
+  it("no-view actor on Private document returns 404 NOT_FOUND envelope", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "fav-delete-private",
+      documentType: "general",
+      visibility: "Private",
+    });
+    hoisted.state.user = s.editorB;
+    const r = await call(
+      favoriteRoute.DELETE,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}/favorite`,
+      { id: s.orgId, documentId: doc.id },
+      { method: "DELETE" },
+    );
+    expect(r.status).toBe(404);
+    expect(r.body).toEqual({ error: "NOT_FOUND" });
+  });
+});
+
+describe("GET /organizations/[id]/documents/recent", () => {
+  it("happy path: returns 200 with the document the actor just opened", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "recent-listed",
+      documentType: "general",
+      visibility: "Private",
+    });
+    const det = await call(
+      docByIdRoute.GET,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}`,
+      { id: s.orgId, documentId: doc.id },
+    );
+    expect(det.status).toBe(200);
+
+    const r = await call(
+      recentRoute.GET,
+      `https://test.local/api/organizations/${s.orgId}/documents/recent`,
+      { id: s.orgId },
+    );
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({
+      recent: expect.arrayContaining([
+        expect.objectContaining({
+          document: expect.objectContaining({ id: doc.id, title: "recent-listed" }),
+        }),
+      ]),
+    });
+  });
+
+  it("per-user isolated: editorB does not see editor's recent view", async () => {
+    const s = await setup();
+    hoisted.state.user = s.editor;
+    // Organization visibility so editorB has View — we are pinning
+    // that recent is keyed by userId, not that no-view filters it.
+    const doc = await createDocument(prisma, s.editor.id, s.orgId, {
+      title: "recent-isolation",
+      documentType: "general",
+      visibility: "Organization",
+    });
+    const det = await call(
+      docByIdRoute.GET,
+      `https://test.local/api/organizations/${s.orgId}/documents/${doc.id}`,
+      { id: s.orgId, documentId: doc.id },
+    );
+    expect(det.status).toBe(200);
+
+    hoisted.state.user = s.editorB;
+    const r = await call(
+      recentRoute.GET,
+      `https://test.local/api/organizations/${s.orgId}/documents/recent`,
+      { id: s.orgId },
+    );
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ recent: [] });
   });
 });
