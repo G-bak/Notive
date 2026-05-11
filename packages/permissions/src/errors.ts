@@ -44,6 +44,9 @@ export type KnownReasonCode =
   // Viewer; deleteTag rejects Editor (Manager+ only).
   | "tag_create_not_allowed"
   | "tag_delete_not_allowed"
+  // FORBIDDEN — Phase D step 1. Viewer cannot start an AI generation
+  // request (Phase D plan §9.1).
+  | "ai_request_create_not_allowed"
   // CONFLICT
   | "already_in_organization"
   | "slug_taken"
@@ -57,7 +60,11 @@ export type KnownReasonCode =
   // retry inside the same transaction (Postgres marks aborted
   // transactions unusable); see apps/web/lib/services/document-
   // version.ts for the escalation path if this fires too often.
-  | "version_conflict";
+  | "version_conflict"
+  // CONFLICT — Phase D step 1. AI request lifecycle transition that the
+  // current status does not allow (e.g. moving a Cancelled request to
+  // Completed). Service: apps/web/lib/services/ai-request.ts.
+  | "ai_request_status_transition_invalid";
 
 const STATUS_FOR: Record<ApiErrorCode, number> = {
   NOT_FOUND: 404,

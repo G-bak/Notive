@@ -56,6 +56,14 @@ export type {
   DocumentSourceType,
   DocumentShareTargetType,
   DocumentSharePermission,
+  AiRequest,
+  AiResult,
+  AiReference,
+  AiUsageLog,
+  AiRequestStatus,
+  AiResultStatus,
+  AiReferenceTargetType,
+  AiUsageStatus,
 } from "@prisma/client";
 
 export { isLastAdminProtectionError, LAST_ADMIN_PROTECTION_PREFIX } from "./prisma-error-codes.js";
