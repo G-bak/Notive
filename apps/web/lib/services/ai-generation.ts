@@ -62,6 +62,8 @@ import {
   transitionAiRequestStatus,
 } from "./ai-request";
 import { type AiProvider, createMockAiProvider, MockProviderError } from "../ai/provider/mock";
+import { type AiPreviewStore } from "../ai/preview/store";
+import { defaultAiPreviewStore } from "../ai/preview/default";
 
 // ---------------------------------------------------------------------
 // Inputs / outputs
@@ -90,11 +92,13 @@ export interface GenerateAiDocumentResult {
   aiResult: AiResult;
   references: AiReference[];
   /**
-   * Generated body envelope. NEVER persisted at this step — the
-   * editor / save handoff that writes it to `documents` is a later
-   * Phase D step. `null` when the request transitioned to Failed.
+   * Generated body envelope. The body lives in the short-term
+   * preview store (24-hour TTL) — never in a permanent table. The
+   * `aiRequest.id` doubles as the lookup handle for the read-side
+   * service in `ai-preview.ts`. `null` when the request transitioned
+   * to Failed (no body was generated, nothing was stored).
    */
-  preview: { title: string; content: string } | null;
+  preview: { title: string; content: string; expiresAt: Date } | null;
 }
 
 export interface GenerateAiDocumentOptions {
@@ -103,6 +107,13 @@ export interface GenerateAiDocumentOptions {
    * provider to drive the Failed lifecycle deterministically.
    */
   provider?: AiProvider;
+  /**
+   * Override the default short-term preview store singleton. Tests
+   * inject a clock-controlled in-memory instance to drive TTL
+   * expiry; the same instance must be passed to `loadAiPreview` so
+   * the read side sees the saved entry.
+   */
+  previewStore?: AiPreviewStore;
 }
 
 // ---------------------------------------------------------------------
@@ -303,11 +314,23 @@ export async function generateAiDocument(
       aiRequest.id,
       refs.records,
     );
+    const previewStore = opts.previewStore ?? defaultAiPreviewStore;
+    const { expiresAt } = await previewStore.save({
+      aiRequestId: completed.id,
+      organizationId,
+      userId,
+      title: providerOutput.title,
+      content: providerOutput.content,
+    });
     return {
       aiRequest: completed,
       aiResult: result,
       references: recordedRefs,
-      preview: { title: providerOutput.title, content: providerOutput.content },
+      preview: {
+        title: providerOutput.title,
+        content: providerOutput.content,
+        expiresAt,
+      },
     };
   }
 
