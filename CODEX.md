@@ -233,6 +233,19 @@ The default integration branch for development is `develop`.
 
 **Until release, do not touch `main`. All development merges and pushes go to `develop` only.**
 
+## Standing Git Authorization
+
+The user has granted Codex standing authorization to commit, merge, and push verified work to `origin/develop` without asking for separate approval each time.
+
+After Codex completes verification and the work is ready, Codex may perform the normal completion flow:
+
+* Commit the verified work on an appropriate `feature/*`, `fix/*`, or `docs/*` branch.
+* Merge that branch into `develop` with `--no-ff`.
+* Push `origin/develop`.
+* Report the commit / merge / push result and verification summary to the user.
+
+This standing authorization does not apply to `main`, release/deployment operations, destructive Git operations, or changes outside the verified work scope. Those still require explicit user instruction.
+
 ## Branch Convention
 
 * `main`: stable branch updated only just before deployment or at release time
@@ -245,8 +258,8 @@ The default integration branch for development is `develop`.
 
 During verification, Codex checks:
 
-* That no commit, merge, or push was performed without an explicit user instruction for that Git operation
-* That when a verified branch has been explicitly approved for commit and push, merging that branch into `develop` and pushing `origin/develop` is treated as part of the same completion flow unless the user explicitly says to stop before merge
+* That any commit, merge, or push was performed only after Codex verification, under the standing authorization above, or under a separate explicit user instruction
+* That when work is verified as complete, merging that branch into `develop` and pushing `origin/develop` is treated as part of the same completion flow unless the user explicitly says to stop before merge
 * That feature branches were created off `develop`
 * That the work scope matches the branch's purpose
 * That feature changes did not land directly on `main`
