@@ -210,8 +210,10 @@ The default integration branch for development is `develop`.
 
 * New features must branch off `develop` into a `feature/*` branch.
 * Bug fixes branch off `develop` into a `fix/*` branch.
-* Do not commit, merge, or push unless the user explicitly instructs that Git operation.
-* After completing work, report the changed files and verification results, then wait for an explicit user instruction before committing, merging, or pushing.
+* Claude does not independently commit, merge, or push unless the user explicitly instructs Claude to do that Git operation.
+* After completing work, report the changed files and verification results and request Codex verification when the work falls under the criteria in section 3.
+* The user has granted Codex standing authorization to commit, merge, and push verified work to `origin/develop` without separate per-task approval.
+* Once Codex verifies the work as complete, Codex may commit the branch, merge it into `develop` with `--no-ff`, and push `origin/develop`.
 * Do not commit directly to `main`.
 * Do not push directly to `main`.
 * `main` is updated only with an explicit deployment instruction.
